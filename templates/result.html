@@ -1,0 +1,2104 @@
+{% extends 'base.html' %}
+
+{% block title %}Analysis Result | AI Resume Analyzer{% endblock %}
+
+{% block content %}
+
+<style>
+/* =========================================================
+   AI RESUME ANALYZER
+   PREMIUM ANALYSIS RESULT UI
+   Backend / Jinja logic is unchanged.
+   ========================================================= */
+
+.result-page {
+    position: relative;
+    isolation: isolate;
+    width: 100%;
+    padding-bottom: 55px;
+    color: #eef2ff !important;
+}
+
+/* ---------- GLOBAL TEXT VISIBILITY ---------- */
+
+/* =========================================================
+   PRIORITY BADGES
+   ========================================================= */
+
+.priority {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 78px;
+    padding: 7px 13px;
+
+    border-radius: 999px;
+
+    font-size: .70rem;
+    font-weight: 900;
+
+    letter-spacing: .08em;
+    text-transform: uppercase;
+
+    background: rgba(255,255,255,.08);
+
+    border: 1px solid rgba(255,255,255,.15);
+
+    box-shadow:
+        0 4px 15px rgba(0,0,0,.20);
+
+    transition:
+        transform .25s ease,
+        box-shadow .25s ease;
+}
+
+
+/* HIGH */
+
+.priority.high {
+    color: #ffb4c0 !important;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(239,68,68,.22),
+            rgba(244,63,94,.12)
+        ) !important;
+
+    border-color:
+        rgba(248,113,113,.55) !important;
+
+    box-shadow:
+        0 0 14px rgba(239,68,68,.16),
+        inset 0 0 12px rgba(239,68,68,.06);
+}
+
+
+/* MEDIUM */
+
+.priority.medium {
+    color: #ffd978 !important;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(245,158,11,.24),
+            rgba(234,179,8,.12)
+        ) !important;
+
+    border-color:
+        rgba(250,204,21,.55) !important;
+
+    box-shadow:
+        0 0 14px rgba(245,158,11,.15),
+        inset 0 0 12px rgba(245,158,11,.06);
+}
+
+
+/* LOW */
+
+.priority.low {
+    color: #7ff0c1 !important;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(16,185,129,.23),
+            rgba(52,211,153,.11)
+        ) !important;
+
+    border-color:
+        rgba(52,211,153,.55) !important;
+
+    box-shadow:
+        0 0 14px rgba(52,211,153,.15),
+        inset 0 0 12px rgba(52,211,153,.06);
+}
+
+
+/* Hover */
+
+.priority:hover {
+    transform: translateY(-2px) scale(1.04);
+}
+
+
+/* HIGH glow */
+
+.priority.high:hover {
+    box-shadow:
+        0 0 22px rgba(239,68,68,.28);
+}
+
+
+/* MEDIUM glow */
+
+.priority.medium:hover {
+    box-shadow:
+        0 0 22px rgba(245,158,11,.28);
+}
+
+
+/* LOW glow */
+
+.priority.low:hover {
+    box-shadow:
+        0 0 22px rgba(52,211,153,.28);
+}
+
+.result-page,
+.result-page p,
+.result-page span,
+.result-page small,
+.result-page b,
+.result-page strong,
+.result-page h1,
+.result-page h2,
+.result-page h3,
+.result-page li,
+.result-page a,
+.result-page i {
+    color: #eef2ff;
+}
+
+.result-page .muted {
+    color: #aeb9d3 !important;
+    opacity: 1;
+}
+
+.result-page .eyebrow {
+    color: #8b7cff !important;
+    font-weight: 800;
+    letter-spacing: .16em;
+}
+
+.result-page h1 {
+    color: #ffffff;
+}
+
+.result-page h2 {
+    color: #f5f7ff !important;
+    font-weight: 750;
+}
+
+.result-page h3 {
+    color: #eaf6ff !important;
+    font-weight: 700;
+}
+
+.result-page small {
+    color: #aeb9d3 !important;
+}
+
+.result-page b {
+    color: #f5f7ff !important;
+}
+
+.result-page li {
+    color: #c9d3e8 !important;
+}
+
+
+/* =========================================================
+   BACKGROUND AMBIENT LIGHT
+   ========================================================= */
+
+.result-page::before,
+.result-page::after {
+    content: "";
+    position: fixed;
+    pointer-events: none;
+    z-index: -1;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: .16;
+}
+
+.result-page::before {
+    width: 420px;
+    height: 420px;
+    top: 5%;
+    left: -190px;
+    background: #5865f2;
+    animation: ambientOne 10s ease-in-out infinite alternate;
+}
+
+.result-page::after {
+    width: 380px;
+    height: 380px;
+    right: -180px;
+    bottom: 8%;
+    background: #00d9ff;
+    animation: ambientTwo 12s ease-in-out infinite alternate;
+}
+
+
+/* =========================================================
+   RESULT HEADER
+   ========================================================= */
+
+.result-head {
+    position: relative;
+    overflow: hidden;
+
+    padding: 34px;
+    margin-bottom: 22px;
+
+    border: 1px solid rgba(130, 150, 255, .18);
+    border-radius: 26px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(28, 35, 70, .82),
+            rgba(8, 13, 31, .88)
+        );
+
+    backdrop-filter: blur(20px);
+
+    box-shadow:
+        0 25px 70px rgba(0,0,0,.35),
+        inset 0 1px 0 rgba(255,255,255,.06);
+
+    animation: headerEnter .8s cubic-bezier(.2,.8,.2,1);
+}
+
+.result-head::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+
+    background:
+        linear-gradient(
+            115deg,
+            transparent 15%,
+            rgba(103,232,249,.07) 45%,
+            rgba(139,124,255,.08) 55%,
+            transparent 85%
+        );
+
+    transform: translateX(-100%);
+    animation: headerShimmer 6s ease-in-out infinite;
+
+    pointer-events: none;
+}
+
+.result-head::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+
+    background: linear-gradient(
+        90deg,
+        transparent,
+        #67e8f9,
+        #8b7cff,
+        #67e8f9,
+        transparent
+    );
+
+    opacity: .7;
+    animation: bottomLight 3s ease-in-out infinite alternate;
+}
+
+.result-head h1 {
+    margin: 6px 0 8px;
+
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    line-height: 1.05;
+    letter-spacing: -.045em;
+
+    background:
+        linear-gradient(
+            90deg,
+            #ffffff,
+            #b9c7ff,
+            #67e8f9,
+            #ffffff
+        );
+
+    background-size: 250% auto;
+
+    -webkit-background-clip: text;
+    background-clip: text;
+
+    color: transparent !important;
+
+    animation: titleShine 5s linear infinite;
+}
+
+.result-head .muted {
+    margin: 0;
+}
+
+.result-head .btn {
+    position: absolute;
+    right: 26px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+
+/* =========================================================
+   SCORE AREA
+   ========================================================= */
+
+.score-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+
+    gap: 18px;
+    margin-bottom: 22px;
+}
+
+.score-card {
+    --score: 0;
+
+    position: relative;
+    min-height: 245px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    padding: 28px 24px;
+
+    overflow: hidden;
+
+    text-align: center;
+
+    border: 1px solid rgba(135, 155, 255, .17);
+    border-radius: 25px;
+
+    background:
+        radial-gradient(
+            circle at 50% 0%,
+            rgba(103,232,249,.09),
+            transparent 45%
+        ),
+        linear-gradient(
+            145deg,
+            rgba(24,31,62,.88),
+            rgba(7,12,28,.91)
+        );
+
+    backdrop-filter: blur(20px);
+
+    box-shadow:
+        0 22px 60px rgba(0,0,0,.32),
+        inset 0 1px 0 rgba(255,255,255,.055);
+
+    animation: scoreEnter .75s cubic-bezier(.2,.8,.2,1) both;
+
+    transition:
+        transform .35s ease,
+        border-color .35s ease,
+        box-shadow .35s ease;
+}
+
+.score-card:nth-child(2) {
+    animation-delay: .12s;
+}
+
+.score-card:nth-child(3) {
+    animation-delay: .24s;
+}
+
+.score-card:hover {
+    transform: translateY(-8px);
+
+    border-color: rgba(103,232,249,.34);
+
+    box-shadow:
+        0 30px 75px rgba(0,0,0,.4),
+        0 0 35px rgba(103,232,249,.08);
+}
+
+
+/* Soft glow behind circle */
+
+.score-card::before {
+    content: "";
+
+    position: absolute;
+
+    width: 185px;
+    height: 185px;
+
+    left: 50%;
+    top: 43%;
+
+    transform: translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(103,232,249,.09),
+            transparent 67%
+        );
+
+    filter: blur(5px);
+
+    animation: scoreAura 3s ease-in-out infinite;
+
+    pointer-events: none;
+}
+
+
+/* Actual percentage ring */
+
+.score-card:nth-child(1)::after,
+.score-card:nth-child(2)::after {
+
+    content: "";
+
+    position: absolute;
+
+    width: 158px;
+    height: 158px;
+
+    left: 50%;
+    top: 43%;
+
+    transform: translate(-50%, -50%) rotate(-90deg);
+
+    border-radius: 50%;
+
+    background:
+        conic-gradient(
+            from 0deg,
+            #67e8f9 0%,
+            #8b7cff calc(var(--score) * 1%),
+            rgba(255,255,255,.075) calc(var(--score) * 1%),
+            rgba(255,255,255,.075) 100%
+        );
+
+    -webkit-mask:
+        radial-gradient(
+            farthest-side,
+            transparent calc(100% - 4px),
+            #000 calc(100% - 3px)
+        );
+
+    mask:
+        radial-gradient(
+            farthest-side,
+            transparent calc(100% - 4px),
+            #000 calc(100% - 3px)
+        );
+
+    filter:
+        drop-shadow(0 0 8px rgba(103,232,249,.55))
+        drop-shadow(0 0 20px rgba(139,124,255,.22));
+
+    transition: background .1s linear;
+
+    pointer-events: none;
+
+    z-index: 1;
+}
+
+.score-card:nth-child(2)::after {
+    background:
+        conic-gradient(
+            from 0deg,
+            #8b7cff 0%,
+            #67e8f9 calc(var(--score) * 1%),
+            rgba(255,255,255,.075) calc(var(--score) * 1%),
+            rgba(255,255,255,.075) 100%
+        );
+}
+
+
+/* Score card content */
+
+.score-card > span,
+.score-card > strong,
+.score-card > small {
+    position: relative;
+    z-index: 3;
+
+    display: block;
+}
+
+.score-card > span {
+    font-size: .76rem;
+
+    letter-spacing: .16em;
+
+    text-transform: uppercase;
+
+    color: #aeb9d3 !important;
+
+    margin-bottom: 18px;
+}
+
+.score-card > strong {
+    font-size: clamp(2.65rem, 5vw, 4.15rem);
+
+    line-height: 1;
+
+    letter-spacing: -.06em;
+
+    color: #ffffff !important;
+
+    text-shadow:
+        0 0 16px rgba(103,232,249,.20),
+        0 0 30px rgba(139,124,255,.12);
+
+    min-width: 150px;
+}
+
+.score-card > small {
+    margin: 18px auto 0;
+
+    max-width: 245px;
+
+    line-height: 1.5;
+
+    color: #aeb9d3 !important;
+}
+
+
+/* =========================================================
+   PREMIUM PANELS
+   ========================================================= */
+
+.result-page > .panel,
+.result-page .grid-2 > .panel {
+    position: relative;
+
+    overflow: hidden;
+
+    border: 1px solid rgba(135,155,255,.14);
+
+    border-radius: 22px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(24,31,60,.82),
+            rgba(7,12,28,.90)
+        );
+
+    backdrop-filter: blur(18px);
+
+    box-shadow:
+        0 18px 55px rgba(0,0,0,.28),
+        inset 0 1px 0 rgba(255,255,255,.045);
+
+    transition:
+        transform .35s ease,
+        border-color .35s ease,
+        box-shadow .35s ease;
+}
+
+.result-page > .panel:hover,
+.result-page .grid-2 > .panel:hover {
+    transform: translateY(-4px);
+
+    border-color: rgba(103,232,249,.23);
+
+    box-shadow:
+        0 25px 65px rgba(0,0,0,.35),
+        0 0 30px rgba(103,232,249,.045);
+}
+
+.result-page > .panel::before,
+.result-page .grid-2 > .panel::before {
+    content: "";
+
+    position: absolute;
+
+    width: 180px;
+    height: 180px;
+
+    right: -100px;
+    top: -100px;
+
+    border-radius: 50%;
+
+    background: rgba(103,232,249,.075);
+
+    filter: blur(28px);
+
+    pointer-events: none;
+
+    transition: transform .5s ease;
+}
+
+.result-page > .panel:hover::before,
+.result-page .grid-2 > .panel:hover::before {
+    transform: scale(1.45);
+}
+
+
+/* =========================================================
+   TWO COLUMN
+   ========================================================= */
+
+.grid-2 {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 18px;
+
+    margin-bottom: 18px;
+}
+
+
+/* =========================================================
+   CHIPS
+   ========================================================= */
+
+.chips {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 9px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 9px 14px;
+
+    border-radius: 999px;
+
+    color: #eaf2ff !important;
+
+    background: rgba(255,255,255,.045);
+
+    border: 1px solid rgba(255,255,255,.10);
+
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.035);
+
+    transition:
+        transform .25s ease,
+        border-color .25s ease,
+        box-shadow .25s ease;
+}
+
+.chip:hover {
+    transform: translateY(-3px);
+
+    border-color: rgba(103,232,249,.30);
+
+    box-shadow:
+        0 0 18px rgba(103,232,249,.10);
+}
+
+.chip.good {
+    color: #b8f8df !important;
+
+    border-color: rgba(52,211,153,.30);
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(52,211,153,.09),
+            rgba(255,255,255,.025)
+        );
+}
+
+.chip.bad {
+    color: #ffc1cc !important;
+
+    border-color: rgba(251,113,133,.30);
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(251,113,133,.08),
+            rgba(255,255,255,.025)
+        );
+}
+
+
+/* =========================================================
+   PRIORITY
+   ========================================================= */
+
+.priority-list {
+    display: grid;
+
+    gap: 11px;
+}
+
+.priority-list > div {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 15px;
+
+    padding: 15px 17px;
+
+    border: 1px solid rgba(255,255,255,.075);
+
+    border-radius: 16px;
+
+    background:
+        linear-gradient(
+            100deg,
+            rgba(255,255,255,.045),
+            rgba(255,255,255,.018)
+        );
+
+    transition:
+        transform .25s ease,
+        border-color .25s ease,
+        background .25s ease;
+}
+
+.priority-list > div:hover {
+    transform: translateX(6px);
+
+    border-color: rgba(103,232,249,.20);
+
+    background:
+        linear-gradient(
+            100deg,
+            rgba(103,232,249,.065),
+            rgba(139,124,255,.035)
+        );
+}
+
+.priority-list b {
+    color: #edf4ff !important;
+}
+
+.priority {
+    padding: 6px 12px;
+
+    border-radius: 999px;
+
+    font-size: .70rem;
+
+    font-weight: 800;
+
+    letter-spacing: .08em;
+
+    text-transform: uppercase;
+
+    color: #ffffff !important;
+
+    background: rgba(255,255,255,.08);
+
+    border: 1px solid rgba(255,255,255,.10);
+}
+
+
+/* =========================================================
+   LEARNING TOPICS
+   ========================================================= */
+
+.learning-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 14px;
+}
+
+.learning-grid article {
+    position: relative;
+
+    overflow: hidden;
+
+    padding: 19px;
+
+    border: 1px solid rgba(255,255,255,.075);
+
+    border-radius: 17px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.045),
+            rgba(255,255,255,.018)
+        );
+
+    transition:
+        transform .3s ease,
+        border-color .3s ease,
+        box-shadow .3s ease;
+}
+
+.learning-grid article:hover {
+    transform: translateY(-5px);
+
+    border-color: rgba(139,124,255,.28);
+
+    box-shadow:
+        0 15px 35px rgba(0,0,0,.20);
+}
+
+.learning-grid article h3 {
+    margin-top: 0;
+
+    color: #eaf6ff !important;
+}
+
+.learning-grid article p {
+    color: #c6d2e8 !important;
+}
+
+.learning-grid ol {
+    margin-bottom: 0;
+
+    padding-left: 20px;
+}
+
+.learning-grid li {
+    margin-bottom: 6px;
+
+    color: #bfcbe0 !important;
+}
+
+
+/* =========================================================
+   DEEP ROADMAP
+   ========================================================= */
+
+.roadmap {
+    position: relative;
+
+    display: grid;
+
+    gap: 14px;
+
+    padding: 10px 2px 5px;
+}
+
+
+/* Glowing vertical line */
+
+.roadmap::before {
+    content: "";
+
+    position: absolute;
+
+    left: 27px;
+
+    top: 27px;
+    bottom: 27px;
+
+    width: 2px;
+
+    background:
+        linear-gradient(
+            to bottom,
+            #67e8f9,
+            #8b7cff 45%,
+            #f5c451 75%,
+            transparent
+        );
+
+    box-shadow:
+        0 0 8px rgba(103,232,249,.45),
+        0 0 20px rgba(139,124,255,.20);
+
+    animation: roadmapLine 3s ease-in-out infinite alternate;
+}
+
+
+/* Roadmap cards */
+
+.road-step {
+    position: relative;
+
+    display: grid;
+
+    grid-template-columns:
+        52px 1fr 28px;
+
+    align-items: center;
+
+    min-height: 72px;
+
+    gap: 13px;
+
+    padding: 10px 16px 10px 7px;
+
+    border: 1px solid rgba(135,155,255,.15);
+
+    border-radius: 18px;
+
+    background:
+        linear-gradient(
+            100deg,
+            rgba(29,39,78,.88),
+            rgba(14,20,43,.92)
+        );
+
+    box-shadow:
+        0 12px 32px rgba(0,0,0,.22),
+        inset 0 1px 0 rgba(255,255,255,.04);
+
+    overflow: hidden;
+
+    animation:
+        roadmapIn .65s cubic-bezier(.2,.8,.2,1) both;
+
+    transition:
+        transform .3s ease,
+        border-color .3s ease,
+        box-shadow .3s ease;
+}
+
+
+/* Staggered entrance */
+
+.road-step:nth-child(1) { animation-delay: .03s; }
+.road-step:nth-child(2) { animation-delay: .08s; }
+.road-step:nth-child(3) { animation-delay: .13s; }
+.road-step:nth-child(4) { animation-delay: .18s; }
+.road-step:nth-child(5) { animation-delay: .23s; }
+.road-step:nth-child(6) { animation-delay: .28s; }
+.road-step:nth-child(7) { animation-delay: .33s; }
+.road-step:nth-child(8) { animation-delay: .38s; }
+.road-step:nth-child(9) { animation-delay: .43s; }
+.road-step:nth-child(10) { animation-delay: .48s; }
+.road-step:nth-child(11) { animation-delay: .53s; }
+.road-step:nth-child(12) { animation-delay: .58s; }
+.road-step:nth-child(13) { animation-delay: .63s; }
+.road-step:nth-child(14) { animation-delay: .68s; }
+
+
+/* Moving light inside roadmap */
+
+.road-step::before {
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    background:
+        linear-gradient(
+            110deg,
+            transparent 15%,
+            rgba(103,232,249,.08) 45%,
+            rgba(139,124,255,.08) 52%,
+            transparent 80%
+        );
+
+    transform: translateX(-120%);
+
+    animation:
+        roadmapShimmer 5.5s ease-in-out infinite;
+
+    pointer-events: none;
+}
+
+.road-step:hover {
+    transform: translateX(7px);
+
+    border-color: rgba(103,232,249,.30);
+
+    box-shadow:
+        0 18px 42px rgba(0,0,0,.30),
+        0 0 25px rgba(103,232,249,.08);
+}
+
+
+/* Step number */
+
+.road-step > span {
+    position: relative;
+
+    z-index: 2;
+
+    width: 40px;
+    height: 40px;
+
+    display: grid;
+
+    place-items: center;
+
+    border-radius: 50%;
+
+    color: #d9eaff !important;
+
+    font-size: .75rem;
+
+    font-weight: 850;
+
+    border: 1px solid rgba(103,232,249,.48);
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(103,232,249,.17),
+            rgba(139,124,255,.16)
+        );
+
+    box-shadow:
+        0 0 15px rgba(103,232,249,.14),
+        inset 0 0 12px rgba(255,255,255,.035);
+
+    transition:
+        transform .3s ease,
+        box-shadow .3s ease;
+}
+
+.road-step:hover > span {
+    transform: scale(1.08);
+
+    box-shadow:
+        0 0 22px rgba(103,232,249,.30);
+}
+
+
+/* Roadmap text */
+
+.road-step > b {
+    position: relative;
+
+    z-index: 2;
+
+    color: #edf4ff !important;
+
+    font-size: 1rem;
+
+    line-height: 1.4;
+
+    letter-spacing: .01em;
+}
+
+
+/* Down arrow */
+
+.road-step > i {
+    position: relative;
+
+    z-index: 2;
+
+    color: #7defff !important;
+
+    font-size: 1rem;
+
+    font-style: normal;
+
+    opacity: .7;
+
+    animation: arrowFloat 1.8s ease-in-out infinite;
+}
+
+
+/* =========================================================
+   PROJECT CARDS
+   ========================================================= */
+
+.project-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 15px;
+}
+
+.project-card {
+    position: relative;
+
+    min-height: 108px;
+
+    overflow: hidden;
+
+    padding: 21px;
+
+    border: 1px solid rgba(135,155,255,.14);
+
+    border-radius: 18px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(139,124,255,.09),
+            rgba(103,232,249,.035),
+            rgba(255,255,255,.018)
+        );
+
+    box-shadow:
+        0 12px 30px rgba(0,0,0,.20);
+
+    transition:
+        transform .3s ease,
+        border-color .3s ease,
+        box-shadow .3s ease;
+}
+
+.project-card::before {
+    content: "";
+
+    position: absolute;
+
+    width: 110px;
+    height: 110px;
+
+    right: -55px;
+    bottom: -55px;
+
+    border-radius: 50%;
+
+    background: rgba(139,124,255,.18);
+
+    filter: blur(25px);
+
+    transition: transform .5s ease;
+}
+
+.project-card:hover {
+    transform: translateY(-6px);
+
+    border-color: rgba(139,124,255,.30);
+
+    box-shadow:
+        0 20px 45px rgba(0,0,0,.28),
+        0 0 25px rgba(139,124,255,.07);
+}
+
+.project-card:hover::before {
+    transform: scale(1.5);
+}
+
+.project-card b {
+    position: relative;
+
+    z-index: 2;
+
+    display: block;
+
+    color: #edf4ff !important;
+
+    line-height: 1.4;
+}
+
+.project-card span {
+    position: relative;
+
+    z-index: 2;
+
+    display: block;
+
+    margin-top: 8px;
+
+    color: #91a3c2 !important;
+
+    font-size: .82rem;
+}
+
+
+/* =========================================================
+   RESUME IMPROVEMENT
+   ========================================================= */
+
+.tips {
+    display: grid;
+
+    gap: 11px;
+
+    padding-left: 22px;
+}
+
+.tips li {
+    padding: 8px 0;
+
+    color: #c8d3e8 !important;
+
+    line-height: 1.65;
+}
+
+.tips li::marker {
+    color: #67e8f9;
+}
+
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.result-actions {
+    display: flex;
+
+    justify-content: center;
+
+    gap: 13px;
+
+    margin-top: 22px;
+
+    padding: 10px 0 25px;
+}
+
+.result-page .btn {
+    transition:
+        transform .3s ease,
+        box-shadow .3s ease;
+}
+
+.result-page .btn:hover {
+    transform: translateY(-3px);
+}
+
+
+/* =========================================================
+   ANIMATIONS
+   ========================================================= */
+
+@keyframes headerEnter {
+    from {
+        opacity: 0;
+        transform: translateY(-18px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes headerShimmer {
+    0%, 35% {
+        transform: translateX(-100%);
+    }
+
+    65%, 100% {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes bottomLight {
+    from {
+        opacity: .35;
+    }
+
+    to {
+        opacity: .95;
+    }
+}
+
+@keyframes titleShine {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    100% {
+        background-position: 250% 50%;
+    }
+}
+
+@keyframes scoreEnter {
+    from {
+        opacity: 0;
+        transform: translateY(25px) scale(.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes scoreAura {
+    0%,100% {
+        transform: translate(-50%, -50%) scale(.94);
+        opacity: .55;
+    }
+
+    50% {
+        transform: translate(-50%, -50%) scale(1.07);
+        opacity: 1;
+    }
+}
+
+@keyframes roadmapLine {
+    from {
+        opacity: .45;
+        filter: blur(.2px);
+    }
+
+    to {
+        opacity: 1;
+        filter: blur(0);
+    }
+}
+
+@keyframes roadmapIn {
+    from {
+        opacity: 0;
+        transform: translateX(-22px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes roadmapShimmer {
+    0%, 45% {
+        transform: translateX(-120%);
+    }
+
+    70%, 100% {
+        transform: translateX(120%);
+    }
+}
+
+@keyframes arrowFloat {
+    0%,100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(4px);
+    }
+}
+
+@keyframes ambientOne {
+    from {
+        transform: translate3d(0,0,0) scale(.9);
+    }
+
+    to {
+        transform: translate3d(55px,-25px,0) scale(1.1);
+    }
+}
+
+@keyframes ambientTwo {
+    from {
+        transform: translate3d(0,0,0) scale(.9);
+    }
+
+    to {
+        transform: translate3d(-45px,30px,0) scale(1.08);
+    }
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 850px) {
+
+    .score-grid,
+    .grid-2,
+    .learning-grid,
+    .project-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .result-head {
+        padding: 28px 22px 82px;
+    }
+
+    .result-head .btn {
+        top: auto;
+        bottom: 20px;
+        right: 22px;
+        transform: none;
+    }
+
+    .score-card {
+        min-height: 225px;
+    }
+}
+
+
+@media (max-width: 520px) {
+
+    .result-head h1 {
+        font-size: 2rem;
+    }
+
+    .score-card > strong {
+        font-size: 3rem;
+    }
+
+    .roadmap::before {
+        left: 24px;
+    }
+
+    .road-step {
+        grid-template-columns: 44px 1fr 20px;
+
+        gap: 9px;
+
+        padding-right: 10px;
+    }
+
+    .road-step > span {
+        width: 35px;
+        height: 35px;
+    }
+
+    .road-step > b {
+        font-size: .92rem;
+    }
+
+    .result-actions {
+        flex-direction: column;
+    }
+
+    .result-actions .btn {
+        width: 100%;
+    }
+}
+
+
+/* Accessibility */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .result-page *,
+    .result-page *::before,
+    .result-page *::after {
+
+        animation-duration: .01ms !important;
+
+        animation-iteration-count: 1 !important;
+
+        scroll-behavior: auto !important;
+    }
+}
+
+</style>
+
+
+<div class="result-page">
+
+
+<!-- =====================================================
+     RESULT HEADER
+     ===================================================== -->
+
+<section class="result-head">
+
+    <div>
+
+        <p class="eyebrow">
+            ANALYSIS COMPLETE
+        </p>
+
+        <h1>
+            {{ result.role }}
+        </h1>
+
+        <p class="muted">
+            {{ filename }} •
+            {{ 'Historical analysis' if from_history else 'Just analyzed' }}
+        </p>
+
+    </div>
+
+    <a
+        class="btn ghost"
+        href="{{ url_for('home') }}"
+    >
+        ← Back
+    </a>
+
+</section>
+
+
+<!-- =====================================================
+     SCORE SECTION
+     ===================================================== -->
+
+<section class="score-grid">
+
+
+    <!-- Career Match -->
+
+    <div class="score-card">
+
+        <span>
+            Career Match
+        </span>
+
+        <strong
+            class="animated-score"
+            data-score="{{ result.match_percentage }}"
+        >
+            0%
+        </strong>
+
+        <small>
+            {{
+                'Strong fit'
+                if result.match_percentage >= 75
+                else 'Promising fit'
+                if result.match_percentage >= 50
+                else 'Needs skill development'
+            }}
+        </small>
+
+    </div>
+
+
+    <!-- Resume Score -->
+
+    <div class="score-card">
+
+        <span>
+            Resume Score
+        </span>
+
+        <strong
+            class="animated-score"
+            data-score="{{ result.resume_score }}"
+        >
+            0/100
+        </strong>
+
+        <small>
+            Based on skills, education, projects, experience and certifications
+        </small>
+
+    </div>
+
+
+    <!-- Best Next Step -->
+
+    <div class="score-card">
+
+        <span>
+            Best next step
+        </span>
+
+        <strong>
+
+            {% if result.match_percentage >= 70 %}
+
+                Build projects
+
+            {% elif result.missing_skills %}
+
+                Close skill gaps
+
+            {% else %}
+
+                Strengthen resume
+
+            {% endif %}
+
+        </strong>
+
+        <small>
+            Use the roadmap below
+        </small>
+
+    </div>
+
+
+</section>
+
+
+<!-- =====================================================
+     SKILL MATCH / SKILL GAP
+     ===================================================== -->
+
+<section class="grid-2">
+
+
+    <div class="panel">
+
+        <p class="eyebrow">
+            SKILL MATCH
+        </p>
+
+        <h2>
+            Skills you have
+        </h2>
+
+        <div class="chips">
+
+            {% for s in result.matched_skills %}
+
+                <span class="chip good">
+                    ✓ {{ s }}
+                </span>
+
+            {% else %}
+
+                <p class="muted">
+                    No target-specific skills detected yet.
+                </p>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+
+    <div class="panel">
+
+        <p class="eyebrow">
+            SKILL GAP
+        </p>
+
+        <h2>
+            Skills to learn
+        </h2>
+
+        <div class="chips">
+
+            {% for s in result.missing_skills %}
+
+                <span class="chip bad">
+                    + {{ s }}
+                </span>
+
+            {% else %}
+
+                <span class="chip good">
+                    Excellent — no major skill gaps detected.
+                </span>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+
+</section>
+
+
+<!-- =====================================================
+     PRIORITY
+     ===================================================== -->
+
+<section class="panel">
+
+    <p class="eyebrow">
+        PRIORITY
+    </p>
+
+    <h2>
+        What should you learn first?
+    </h2>
+
+    <div class="priority-list">
+
+        {% for item in result.priority %}
+
+            <div>
+
+                <b>
+                    {{ item.skill }}
+                </b>
+
+                <span
+                    class="priority {{ item.priority|lower }}"
+                >
+                    {{ item.priority }}
+                </span>
+
+            </div>
+
+        {% else %}
+
+            <p class="muted">
+                No missing skills.
+            </p>
+
+        {% endfor %}
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     LANGUAGES & TECHNOLOGIES
+     ===================================================== -->
+
+<section class="panel">
+
+    <p class="eyebrow">
+        LANGUAGES & TECHNOLOGIES
+    </p>
+
+    <h2>
+        What else should you learn?
+    </h2>
+
+    <div class="learning-grid">
+
+        {% for item in result.topics %}
+
+            <article>
+
+                <h3>
+                    {{ item.skill }}
+                </h3>
+
+                <ol>
+
+                    {% for topic in item.topics %}
+
+                        <li>
+                            {{ topic }}
+                        </li>
+
+                    {% endfor %}
+
+                </ol>
+
+            </article>
+
+        {% endfor %}
+
+
+        {% if result.learning_languages %}
+
+            <article>
+
+                <h3>
+                    Programming languages
+                </h3>
+
+                <p>
+                    {{ result.learning_languages|join(', ') }}
+                </p>
+
+            </article>
+
+        {% endif %}
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     DEEP ROADMAP
+     ===================================================== -->
+
+<section class="panel">
+
+    <p class="eyebrow">
+        DEEP ROADMAP
+    </p>
+
+    <h2>
+        {{ result.role }} — Job Ready Path
+    </h2>
+
+    <div class="roadmap">
+
+        {% for step in result.roadmap %}
+
+            <div class="road-step">
+
+                <span>
+                    {{ '%02d'|format(loop.index) }}
+                </span>
+
+                <b>
+                    {{ step }}
+                </b>
+
+                {% if not loop.last %}
+
+                    <i>
+                        ↓
+                    </i>
+
+                {% endif %}
+
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     PROJECTS
+     ===================================================== -->
+
+<section class="panel">
+
+    <p class="eyebrow">
+        PROJECTS
+    </p>
+
+    <h2>
+        Projects to build
+    </h2>
+
+    <div class="project-grid">
+
+        {% for project in result.projects_recommended %}
+
+            <div class="project-card">
+
+                <b>
+                    {{ project }}
+                </b>
+
+                <span>
+                    {{ result.role }}
+                </span>
+
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     RESUME IMPROVEMENT
+     ===================================================== -->
+
+<section class="panel">
+
+    <p class="eyebrow">
+        RESUME IMPROVEMENT
+    </p>
+
+    <h2>
+        Make your resume stronger
+    </h2>
+
+    <ul class="tips">
+
+        <li>
+            Use measurable results in project and experience bullets.
+        </li>
+
+        <li>
+            Keep skills aligned with the target career and place important skills near the top.
+        </li>
+
+        <li>
+            Add GitHub/project links and explain your individual contribution.
+        </li>
+
+        <li>
+            Keep the resume concise, readable and consistent.
+        </li>
+
+    </ul>
+
+</section>
+
+
+<!-- =====================================================
+     ACTIONS
+     ===================================================== -->
+
+<section class="result-actions">
+
+    <a
+        class="btn ghost"
+        href="{{ url_for('home') }}"
+    >
+        ← Choose another career
+    </a>
+
+    <a
+        class="btn primary"
+        href="{{ url_for('history') }}"
+    >
+        View my history
+    </a>
+
+</section>
+
+
+</div>
+
+
+<!-- =====================================================
+     SCORE COUNT-UP ANIMATION
+     ===================================================== -->
+
+<script>
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    const scoreElements =
+        document.querySelectorAll(".animated-score");
+
+
+    scoreElements.forEach((element, index) => {
+
+        const card =
+            element.closest(".score-card");
+
+        const target =
+            Math.max(
+                0,
+                Math.min(
+                    100,
+                    Number(element.dataset.score) || 0
+                )
+            );
+
+
+        const duration =
+            1700 + (index * 300);
+
+
+        const delay =
+            350 + (index * 150);
+
+
+        const startTime =
+            performance.now() + delay;
+
+
+        /*
+         * Start circular ring from 0%.
+         */
+
+        if (card) {
+
+            card.style.setProperty(
+                "--score",
+                "0"
+            );
+
+        }
+
+
+        function animate(now) {
+
+            if (now < startTime) {
+
+                requestAnimationFrame(animate);
+
+                return;
+
+            }
+
+
+            const progress =
+                Math.min(
+                    (now - startTime) / duration,
+                    1
+                );
+
+
+            /*
+             * Smooth ease-out.
+             */
+
+            const eased =
+                1 - Math.pow(
+                    1 - progress,
+                    4
+                );
+
+
+            const value =
+                Math.round(
+                    target * eased
+                );
+
+
+            /*
+             * Update number.
+             */
+
+            if (index === 0) {
+
+                element.textContent =
+                    `${value}%`;
+
+            } else {
+
+                element.textContent =
+                    `${value}/100`;
+
+            }
+
+
+            /*
+             * Update circular progress.
+             */
+
+            if (card) {
+
+                card.style.setProperty(
+                    "--score",
+                    value
+                );
+
+            }
+
+
+            if (progress < 1) {
+
+                requestAnimationFrame(animate);
+
+            } else {
+
+                /*
+                 * Make sure final value is exact.
+                 */
+
+                if (index === 0) {
+
+                    element.textContent =
+                        `${Math.round(target)}%`;
+
+                } else {
+
+                    element.textContent =
+                        `${Math.round(target)}/100`;
+
+                }
+
+
+                if (card) {
+
+                    card.style.setProperty(
+                        "--score",
+                        target
+                    );
+
+                }
+
+            }
+
+        }
+
+
+        requestAnimationFrame(animate);
+
+    });
+
+});
+
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,892 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Profile | AI Resume Analyzer
+{% endblock %}
+
+{% block content %}
+
+<style>
+
+/* =========================================================
+   PREMIUM PROFILE PAGE
+   UI / UX ONLY
+   ========================================================= */
+
+.profile-page {
+    position: relative;
+
+    min-height: calc(100vh - 76px);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 55px 20px 80px;
+
+    overflow: hidden;
+
+    color: #f5faf8;
+
+    background:
+        radial-gradient(
+            circle at 15% 20%,
+            rgba(40, 220, 170, 0.12),
+            transparent 28%
+        ),
+        radial-gradient(
+            circle at 85% 75%,
+            rgba(245, 190, 75, 0.08),
+            transparent 27%
+        ),
+        linear-gradient(
+            135deg,
+            #050807 0%,
+            #09110f 48%,
+            #070b0a 100%
+        );
+}
+
+
+/* =========================================================
+   ANIMATED BACKGROUND ORBS
+   ========================================================= */
+
+.profile-page::before {
+
+    content: "";
+
+    position: absolute;
+
+    width: 420px;
+    height: 420px;
+
+    top: -170px;
+    left: -120px;
+
+    border-radius: 50%;
+
+    background:
+        rgba(45, 225, 170, 0.10);
+
+    filter: blur(95px);
+
+    animation:
+        profileOrbOne 9s ease-in-out infinite alternate;
+
+    pointer-events: none;
+}
+
+
+.profile-page::after {
+
+    content: "";
+
+    position: absolute;
+
+    width: 390px;
+    height: 390px;
+
+    right: -130px;
+    bottom: -170px;
+
+    border-radius: 50%;
+
+    background:
+        rgba(246, 193, 82, 0.075);
+
+    filter: blur(95px);
+
+    animation:
+        profileOrbTwo 11s ease-in-out infinite alternate;
+
+    pointer-events: none;
+}
+
+
+@keyframes profileOrbOne {
+
+    from {
+        transform:
+            translate(0, 0)
+            scale(1);
+    }
+
+    to {
+        transform:
+            translate(100px, 80px)
+            scale(1.18);
+    }
+
+}
+
+
+@keyframes profileOrbTwo {
+
+    from {
+        transform:
+            translate(0, 0)
+            scale(1);
+    }
+
+    to {
+        transform:
+            translate(-90px, -70px)
+            scale(1.16);
+    }
+
+}
+
+
+/* =========================================================
+   SUBTLE BACKGROUND GRID
+   ========================================================= */
+
+.profile-grid {
+
+    position: absolute;
+
+    inset: 0;
+
+    background-image:
+        linear-gradient(
+            rgba(255,255,255,.018) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(255,255,255,.018) 1px,
+            transparent 1px
+        );
+
+    background-size: 60px 60px;
+
+    mask-image:
+        linear-gradient(
+            to bottom,
+            black,
+            transparent 90%
+        );
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   PROFILE CONTAINER
+   ========================================================= */
+
+.profile-container {
+
+    position: relative;
+
+    z-index: 2;
+
+    width: 100%;
+    max-width: 430px;
+
+    margin: 0 auto;
+}
+
+
+/* =========================================================
+   PAGE HEADING
+   ========================================================= */
+
+.profile-page .page-head {
+
+    text-align: center;
+
+    margin-bottom: 22px;
+
+    animation:
+        profileHeadIn
+        .75s
+        cubic-bezier(.2,.8,.2,1)
+        both;
+}
+
+
+@keyframes profileHeadIn {
+
+    from {
+        opacity: 0;
+
+        transform:
+            translateY(22px);
+    }
+
+    to {
+        opacity: 1;
+
+        transform:
+            translateY(0);
+    }
+
+}
+
+
+/* =========================================================
+   EYEBROW
+   ========================================================= */
+
+.profile-page .eyebrow {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    margin: 0 0 12px;
+
+    padding: 7px 13px;
+
+    border-radius: 999px;
+
+    color: #5be2a5;
+
+    background:
+        rgba(61, 220, 150, 0.06);
+
+    border:
+        1px solid
+        rgba(61, 220, 150, 0.16);
+
+    font-size: 10px;
+
+    font-weight: 800;
+
+    letter-spacing: 1.7px;
+
+    box-shadow:
+        0 0 20px
+        rgba(61,220,150,.05);
+}
+
+
+.profile-page .eyebrow::before {
+
+    content: "";
+
+    width: 6px;
+    height: 6px;
+
+    border-radius: 50%;
+
+    background: #5be2a5;
+
+    box-shadow:
+        0 0 8px #5be2a5;
+
+    animation:
+        profileDot
+        1.5s
+        ease-in-out
+        infinite;
+}
+
+
+@keyframes profileDot {
+
+    0%,
+    100% {
+        opacity: .45;
+        transform: scale(.8);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.15);
+    }
+
+}
+
+
+/* =========================================================
+   TITLE
+   ========================================================= */
+
+.profile-page .page-head h1 {
+
+    margin: 0;
+
+    color: #f6faf8;
+
+    font-size: 40px;
+
+    line-height: 1;
+
+    font-weight: 900;
+
+    letter-spacing: -1.8px;
+
+    text-shadow:
+        0 8px 30px rgba(0,0,0,.35);
+}
+
+
+/* =========================================================
+   SMALL TITLE GLOW
+   ========================================================= */
+
+.profile-page .page-head h1::after {
+
+    content: "";
+
+    display: block;
+
+    width: 48px;
+    height: 2px;
+
+    margin: 13px auto 0;
+
+    border-radius: 999px;
+
+    background:
+        linear-gradient(
+            90deg,
+            #4ce2a0,
+            #eac45d
+        );
+
+    box-shadow:
+        0 0 12px
+        rgba(70,220,150,.35);
+
+    animation:
+        profileLine
+        3s
+        ease-in-out
+        infinite;
+}
+
+
+@keyframes profileLine {
+
+    0%,
+    100% {
+        transform: scaleX(.7);
+        opacity: .5;
+    }
+
+    50% {
+        transform: scaleX(1.15);
+        opacity: 1;
+    }
+
+}
+
+
+/* =========================================================
+   PROFILE CARD
+   ========================================================= */
+
+.profile-page .profile-card {
+
+    position: relative;
+
+    width: 100%;
+
+    padding: 28px;
+
+    border-radius: 23px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.075),
+            rgba(255,255,255,.025)
+        );
+
+    border:
+        1px solid
+        rgba(150,220,190,.15);
+
+    backdrop-filter:
+        blur(24px);
+
+    -webkit-backdrop-filter:
+        blur(24px);
+
+    box-shadow:
+        0 30px 70px
+        rgba(0,0,0,.38),
+
+        0 0 45px
+        rgba(50,210,145,.045),
+
+        inset 0 1px 0
+        rgba(255,255,255,.07);
+
+    animation:
+        profileCardIn
+        .9s
+        cubic-bezier(.2,.8,.2,1)
+        .12s
+        both;
+
+    transition:
+        transform .35s ease,
+        border-color .35s ease,
+        box-shadow .35s ease;
+
+    overflow: hidden;
+}
+
+
+@keyframes profileCardIn {
+
+    from {
+        opacity: 0;
+
+        transform:
+            translateY(30px)
+            scale(.97);
+    }
+
+    to {
+        opacity: 1;
+
+        transform:
+            translateY(0)
+            scale(1);
+    }
+
+}
+
+
+.profile-page .profile-card:hover {
+
+    transform:
+        translateY(-4px);
+
+    border-color:
+        rgba(75,225,160,.27);
+
+    box-shadow:
+        0 35px 80px
+        rgba(0,0,0,.42),
+
+        0 0 45px
+        rgba(50,220,150,.08),
+
+        inset 0 1px 0
+        rgba(255,255,255,.09);
+}
+
+
+/* =========================================================
+   CARD TOP LIGHT
+   ========================================================= */
+
+.profile-page .profile-card::before {
+
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: -40%;
+
+    width: 45%;
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            #54e5a2,
+            #edc35b,
+            transparent
+        );
+
+    animation:
+        profileCardLight
+        5s
+        linear
+        infinite;
+}
+
+
+@keyframes profileCardLight {
+
+    from {
+        left: -45%;
+    }
+
+    to {
+        left: 110%;
+    }
+
+}
+
+
+/* =========================================================
+   FORM
+   ========================================================= */
+
+.profile-page .form {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 9px;
+}
+
+
+/* =========================================================
+   LABELS
+   ========================================================= */
+
+.profile-page .form label {
+
+    margin-top: 5px;
+
+    color: #b8c8bf;
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    letter-spacing: .5px;
+}
+
+
+/* =========================================================
+   INPUTS
+   ========================================================= */
+
+.profile-page .form input {
+
+    width: 100%;
+
+    height: 45px;
+
+    padding:
+        0 13px;
+
+    border-radius: 11px;
+
+    border:
+        1px solid
+        rgba(150,200,180,.14);
+
+    outline: none;
+
+    color: #f2f8f4;
+
+    background:
+        rgba(2,8,6,.50);
+
+    font-size: 13px;
+
+    transition:
+        border-color .25s ease,
+        box-shadow .25s ease,
+        background .25s ease,
+        transform .25s ease;
+}
+
+
+.profile-page .form input::placeholder {
+
+    color: #68766f;
+}
+
+
+.profile-page .form input:focus {
+
+    border-color:
+        rgba(75,225,160,.50);
+
+    background:
+        rgba(10,28,20,.65);
+
+    box-shadow:
+        0 0 0 3px
+        rgba(65,220,150,.07),
+
+        0 0 25px
+        rgba(55,220,145,.08);
+}
+
+
+/* Disabled email */
+
+.profile-page .form input:disabled {
+
+    color: #84948c;
+
+    background:
+        rgba(255,255,255,.025);
+
+    border-color:
+        rgba(150,200,180,.08);
+
+    cursor: not-allowed;
+}
+
+
+/* =========================================================
+   SAVE BUTTON
+   ========================================================= */
+
+.profile-page .btn.primary {
+
+    position: relative;
+
+    width: 100%;
+
+    height: 46px;
+
+    margin-top: 12px;
+
+    border: none;
+
+    border-radius: 12px;
+
+    color: #06110c;
+
+    background:
+        linear-gradient(
+            100deg,
+            #54e5a1,
+            #8ae9bd,
+            #e9c55e,
+            #54e5a1
+        );
+
+    background-size: 300% auto;
+
+    font-size: 13px;
+
+    font-weight: 800;
+
+    letter-spacing: .2px;
+
+    cursor: pointer;
+
+    overflow: hidden;
+
+    box-shadow:
+        0 8px 25px
+        rgba(61,220,145,.12);
+
+    animation:
+        saveGradient
+        5s
+        linear
+        infinite;
+
+    transition:
+        transform .25s ease,
+        box-shadow .25s ease;
+}
+
+
+@keyframes saveGradient {
+
+    0% {
+        background-position: 0% center;
+    }
+
+    100% {
+        background-position: 300% center;
+    }
+
+}
+
+
+.profile-page .btn.primary::before {
+
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: -110%;
+
+    width: 70%;
+    height: 100%;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255,255,255,.45),
+            transparent
+        );
+
+    transform: skewX(-20deg);
+
+    animation:
+        saveShine
+        3.5s
+        ease-in-out
+        infinite;
+}
+
+
+@keyframes saveShine {
+
+    0% {
+        left: -110%;
+    }
+
+    45%,
+    100% {
+        left: 130%;
+    }
+
+}
+
+
+.profile-page .btn.primary:hover {
+
+    transform:
+        translateY(-2px);
+
+    box-shadow:
+        0 12px 35px
+        rgba(61,220,145,.20),
+
+        0 0 25px
+        rgba(230,190,80,.08);
+}
+
+
+.profile-page .btn.primary:active {
+
+    transform:
+        translateY(0)
+        scale(.98);
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    .profile-page {
+
+        min-height:
+            calc(100vh - 66px);
+
+        padding:
+            40px 15px 60px;
+    }
+
+
+    .profile-page .page-head h1 {
+
+        font-size: 34px;
+    }
+
+
+    .profile-page .profile-card {
+
+        padding: 22px;
+
+        border-radius: 20px;
+    }
+
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .profile-page *,
+    .profile-page::before,
+    .profile-page::after {
+
+        animation: none !important;
+
+        transition: none !important;
+    }
+
+}
+
+</style>
+
+
+<section class="profile-page">
+
+    <!-- Animated background grid -->
+    <div class="profile-grid"></div>
+
+
+    <div class="profile-container">
+
+
+        <!-- =====================================================
+             PAGE HEADER
+             ===================================================== -->
+
+        <section class="page-head">
+
+            <p class="eyebrow">
+                ACCOUNT
+            </p>
+
+            <h1>
+                Your profile
+            </h1>
+
+        </section>
+
+
+        <!-- =====================================================
+             PROFILE CARD
+             ===================================================== -->
+
+        <section class="panel profile-card">
+
+            <form method="post" class="form">
+
+
+                <label>
+                    Full name
+                </label>
+
+                <input
+                    name="name"
+                    value="{{ name }}"
+                    required
+                >
+
+
+                <label>
+                    Email
+                </label>
+
+                <input
+                    value="{{ email }}"
+                    disabled
+                >
+
+
+                <button
+                    class="btn primary"
+                    type="submit"
+                >
+                    Save changes
+                </button>
+
+
+            </form>
+
+        </section>
+
+    </div>
+
+</section>
+
+{% endblock %}

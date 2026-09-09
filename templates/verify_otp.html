@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verify OTP | AI Resume Analyzer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}body{min-height:100vh;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#fff;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(circle at 15% 15%,#263b80 0,transparent 34%),radial-gradient(circle at 85% 85%,#542d82 0,transparent 34%),linear-gradient(135deg,#070b18,#10162a 50%,#080b16);overflow:hidden}body:before,body:after{content:"";position:fixed;width:320px;height:320px;border-radius:50%;filter:blur(85px);pointer-events:none}body:before{background:rgba(76,132,255,.09);top:-150px;right:-100px}body:after{background:rgba(162,78,255,.08);bottom:-150px;left:-100px}.card{width:min(390px,calc(100% - 20px));padding:30px 28px 26px;border:1px solid rgba(255,255,255,.14);border-radius:24px;background:linear-gradient(145deg,rgba(255,255,255,.105),rgba(255,255,255,.045));box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(24px);animation:enter .55s ease;position:relative;z-index:2}@keyframes enter{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}.icon{width:54px;height:54px;margin:0 auto 14px;border-radius:16px;display:grid;place-items:center;font-size:25px;background:linear-gradient(135deg,#5b7cff,#7b4dff);box-shadow:0 12px 30px rgba(91,124,255,.25)}.eyebrow{text-align:center;color:#7ddcff;font-size:10px;font-weight:800;letter-spacing:2px;margin-bottom:8px}.card h1{text-align:center;font-size:25px;margin-bottom:8px}.muted{text-align:center;color:rgba(222,232,246,.68);font-size:12px;line-height:1.55}.muted strong{color:#fff;font-weight:600}.timer{text-align:right;color:#72dcff;font-size:11px;font-weight:700;margin:18px 2px 7px}.timer.expired{color:#ff7380}.form{display:flex;flex-direction:column;gap:10px}.otp{width:100%;height:50px;border:1px solid rgba(255,255,255,.14);border-radius:13px;background:rgba(4,8,18,.38);color:#fff;text-align:center;letter-spacing:8px;font-size:22px;font-weight:700;outline:none;transition:.2s}.otp:focus{border-color:rgba(93,220,255,.7);box-shadow:0 0 0 3px rgba(93,220,255,.08),0 0 22px rgba(93,220,255,.12)}.btn{height:44px;border:0;border-radius:12px;font-weight:800;cursor:pointer;transition:.2s}.primary{color:#06101b;background:linear-gradient(110deg,#61ddff,#8d7bff,#61ddff);background-size:200% 100%;animation:gradient 4s linear infinite}@keyframes gradient{to{background-position:200% 0}}.primary:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(97,221,255,.18)}.primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}.ghost{width:100%;margin-top:10px;color:#aeeaff;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.11)}.ghost:hover{background:rgba(255,255,255,.075)}.ghost:disabled{opacity:.5;cursor:not-allowed}.message{min-height:17px;text-align:center;font-size:11px;font-weight:600;margin-top:8px}.message.error{color:#ff7885}.message.success{color:#78e6ad}.back{text-align:center;margin-top:18px;font-size:11px}.back a{color:#8fe6ff;text-decoration:none}.loader{width:13px;height:13px;display:inline-block;border:2px solid rgba(0,0,0,.25);border-top-color:#06101b;border-radius:50%;vertical-align:-2px;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<section class="card">
+<div class="icon">✉</div>
+<p class="eyebrow">EMAIL VERIFICATION</p>
+<h1>Enter your OTP</h1>
+<p class="muted">We sent a 6-digit code to <strong>{{ email }}</strong>.</p>
+<div class="timer" id="otpTimer">01:30</div>
+<form class="form" id="otpForm">
+<input class="otp" id="otpInput" name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="\d{6}" placeholder="000000" required>
+<button class="btn primary" id="verifyBtn" type="submit">Verify OTP</button>
+</form>
+<div class="message" id="otpMessage"></div>
+<button class="btn ghost" id="resendBtn" data-purpose="{{ purpose }}" type="button" disabled>Resend OTP</button>
+<p class="back"><a href="{{ url_for('login') }}">Back to login</a></p>
+</section>
+<script>
+const otpForm=document.getElementById('otpForm');const otpInput=document.getElementById('otpInput');const verifyBtn=document.getElementById('verifyBtn');const resendBtn=document.getElementById('resendBtn');const timer=document.getElementById('otpTimer');const message=document.getElementById('otpMessage');
+let countdownId=null;
+function formatTime(s){s=Math.max(0,Math.floor(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function showMessage(text,type='error'){message.textContent=text;message.className='message '+type}
+function startCountdown(seconds){clearInterval(countdownId);let left=Math.max(0,Number(seconds)||0);timer.classList.remove('expired');resendBtn.disabled=true;verifyBtn.disabled=left<=0;timer.textContent=formatTime(left);countdownId=setInterval(()=>{left=Math.max(0,left-1);timer.textContent=formatTime(left);if(left<=0){clearInterval(countdownId);timer.textContent='OTP expired';timer.classList.add('expired');verifyBtn.disabled=true;
+resendBtn.disabled=false}},1000)}
+const otpRemaining = Number("{{ otp_remaining|default(90) }}") || 90;
+startCountdown(otpRemaining);
+otpInput.addEventListener('input',()=>{otpInput.value=otpInput.value.replace(/\D/g,'').slice(0,6);message.textContent='';message.className='message'});
+otpForm.addEventListener('submit',async e=>{e.preventDefault();const otp=otpInput.value.trim();if(!/^\d{6}$/.test(otp)){showMessage('Enter the 6-digit OTP.');otpInput.focus();return}verifyBtn.disabled=true;verifyBtn.innerHTML='<span class="loader"></span> Verifying...';try{const fd=new FormData();fd.append('otp',otp);const r=await fetch('{{ url_for("verify_reset_otp") }}',{method:'POST',body:fd,headers:{'X-Requested-With':'XMLHttpRequest'}});const data=await r.json();if(r.ok&&data.success){clearInterval(countdownId);showMessage('OTP verified. Redirecting...','success');verifyBtn.textContent='✓ Verified';setTimeout(()=>{window.location.href=data.redirect_url||'{{ url_for("reset_password") }}'},450);return}showMessage(data.message||'Invalid OTP.');verifyBtn.disabled=false;verifyBtn.textContent='Verify OTP'}catch(err){showMessage('Unable to verify OTP. Please try again.');verifyBtn.disabled=false;verifyBtn.textContent='Verify OTP'}});
+resendBtn.addEventListener('click',async()=>{resendBtn.disabled=true;resendBtn.textContent='Sending...';try{const fd=new FormData();fd.append('purpose',resendBtn.dataset.purpose||'reset');const r=await fetch('{{ url_for("resend_otp") }}',{method:'POST',body:fd,headers:{'X-Requested-With':'XMLHttpRequest'}});const data=await r.json();if(r.ok&&data.success){otpInput.value='';showMessage('New OTP sent successfully.','success');startCountdown(Number(data.expires_in)||90);resendBtn.textContent='Resend OTP';otpInput.focus();return}showMessage(data.message||'Unable to resend OTP.');resendBtn.disabled=false;resendBtn.textContent='Resend OTP'}catch(err){showMessage('Unable to resend OTP. Please try again.');resendBtn.disabled=false;resendBtn.textContent='Resend OTP'}});
+</script>
+</body></html>

@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    <title>{% block title %}AI Resume Analyzer{% endblock %}</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+
+    <style>
+
+        /* =========================================================
+           GLOBAL
+           ========================================================= */
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #060b16;
+        }
+
+
+        /* =========================================================
+           PREMIUM NAVBAR
+           ========================================================= */
+
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 9999;
+
+            width: 100%;
+            min-height: 76px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 0 34px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(7, 16, 32, 0.94),
+                    rgba(9, 15, 35, 0.88)
+                );
+
+            border-bottom: 1px solid rgba(116, 218, 255, 0.14);
+
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+
+            box-shadow:
+                0 12px 45px rgba(0, 0, 0, 0.28),
+                inset 0 1px 0 rgba(255,255,255,0.04);
+
+            overflow: hidden;
+
+            animation: navbarAppear 0.7s ease both;
+        }
+
+
+        /* =========================================================
+           NAVBAR TOP LIGHT
+           ========================================================= */
+
+        .nav::before {
+            content: "";
+
+            position: absolute;
+
+            top: 0;
+            left: -30%;
+
+            width: 45%;
+            height: 1px;
+
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(77, 218, 255, 0.9),
+                rgba(139, 101, 255, 0.9),
+                transparent
+            );
+
+            filter: blur(0.5px);
+
+            animation: navbarLight 5s linear infinite;
+
+            pointer-events: none;
+        }
+
+
+        @keyframes navbarLight {
+
+            0% {
+                left: -40%;
+            }
+
+            100% {
+                left: 110%;
+            }
+
+        }
+
+
+        /* =========================================================
+           NAVBAR BOTTOM GLOW
+           ========================================================= */
+
+        .nav::after {
+            content: "";
+
+            position: absolute;
+
+            left: 12%;
+            right: 12%;
+            bottom: -1px;
+
+            height: 2px;
+
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(58, 214, 255, 0.65),
+                rgba(119, 93, 255, 0.75),
+                rgba(58, 214, 255, 0.65),
+                transparent
+            );
+
+            filter: blur(1px);
+
+            opacity: 0.7;
+
+            animation: navbarGlow 4s ease-in-out infinite;
+
+            pointer-events: none;
+        }
+
+
+        @keyframes navbarGlow {
+
+            0%,
+            100% {
+                opacity: 0.45;
+                transform: scaleX(0.8);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scaleX(1);
+            }
+
+        }
+
+
+        /* =========================================================
+           LOGO
+           ========================================================= */
+
+        .nav .brand {
+
+            position: relative;
+
+            display: inline-flex;
+            align-items: center;
+
+            text-decoration: none;
+
+            font-size: 27px;
+            font-weight: 900;
+
+            letter-spacing: -1.5px;
+
+            color: #f8fbff;
+
+            transition:
+                transform 0.3s ease,
+                filter 0.3s ease;
+
+            animation: logoEnter 0.8s ease both;
+        }
+
+
+        @keyframes logoEnter {
+
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+
+        }
+
+
+        .nav .brand:hover {
+
+            transform: translateY(-2px) scale(1.02);
+
+            filter:
+                drop-shadow(0 0 12px rgba(73, 216, 255, 0.25));
+        }
+
+
+        /* AI part */
+
+        .nav .brand::before {
+            content: "";
+
+            position: absolute;
+
+            width: 7px;
+            height: 7px;
+
+            border-radius: 50%;
+
+            top: 3px;
+            left: 2px;
+
+            background: #59dcff;
+
+            box-shadow:
+                0 0 7px #59dcff,
+                0 0 17px rgba(89, 220, 255, 0.7);
+
+            animation: logoDot 2s ease-in-out infinite;
+        }
+
+
+        @keyframes logoDot {
+
+            0%,
+            100% {
+                opacity: 0.45;
+                transform: scale(0.8);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.15);
+            }
+
+        }
+
+
+        /* Resume gradient */
+
+        .nav .brand span {
+
+            margin-left: 2px;
+
+            background: linear-gradient(
+                90deg,
+                #50ddff,
+                #668dff,
+                #9b78ff,
+                #50ddff
+            );
+
+            background-size: 300% auto;
+
+            -webkit-background-clip: text;
+            background-clip: text;
+
+            -webkit-text-fill-color: transparent;
+
+            animation: logoGradient 4s linear infinite;
+        }
+
+
+        @keyframes logoGradient {
+
+            0% {
+                background-position: 0% center;
+            }
+
+            100% {
+                background-position: 300% center;
+            }
+
+        }
+
+
+        /* =========================================================
+           NAV LINKS CONTAINER
+           ========================================================= */
+
+        .navlinks {
+
+            display: flex;
+            align-items: center;
+
+            gap: 7px;
+
+            animation: linksEnter 0.8s ease 0.1s both;
+        }
+
+
+        @keyframes linksEnter {
+
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+
+        }
+
+
+        /* =========================================================
+           NAV LINKS
+           ========================================================= */
+
+        .navlinks a {
+
+            position: relative;
+
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            min-height: 42px;
+
+            padding: 0 14px;
+
+            border-radius: 12px;
+
+            text-decoration: none;
+
+            color: #aebdd1;
+
+            font-size: 14px;
+            font-weight: 650;
+
+            transition:
+                color 0.25s ease,
+                background 0.25s ease,
+                transform 0.25s ease,
+                box-shadow 0.25s ease;
+
+            overflow: hidden;
+        }
+
+
+        /* Moving shine inside link */
+
+        .navlinks a::before {
+
+            content: "";
+
+            position: absolute;
+
+            top: 0;
+            left: -120%;
+
+            width: 80%;
+            height: 100%;
+
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255,255,255,0.08),
+                transparent
+            );
+
+            transform: skewX(-20deg);
+
+            transition: left 0.55s ease;
+        }
+
+
+        .navlinks a:hover::before {
+            left: 130%;
+        }
+
+
+        /* Hover */
+
+        .navlinks a:hover {
+
+            color: #67ddff;
+
+            background:
+                rgba(67, 211, 255, 0.07);
+
+            transform: translateY(-2px);
+
+            box-shadow:
+                0 0 20px rgba(45, 204, 255, 0.08);
+        }
+
+
+        /* Small glowing line */
+
+        .navlinks a:not(.logout)::after {
+
+            content: "";
+
+            position: absolute;
+
+            left: 50%;
+            bottom: 5px;
+
+            width: 0;
+            height: 2px;
+
+            border-radius: 10px;
+
+            background: linear-gradient(
+                90deg,
+                #50dcff,
+                #8c79ff
+            );
+
+            box-shadow:
+                0 0 8px rgba(70, 215, 255, 0.7);
+
+            transform: translateX(-50%);
+
+            transition: width 0.3s ease;
+        }
+
+
+        .navlinks a:not(.logout):hover::after {
+            width: 22px;
+        }
+
+
+        /* =========================================================
+           LOGOUT
+           ========================================================= */
+
+        .navlinks .logout {
+
+            color: #ff7080;
+
+            background:
+                rgba(255, 80, 105, 0.045);
+
+            border: 1px solid rgba(255, 80, 105, 0.08);
+        }
+
+
+        .navlinks .logout:hover {
+
+            color: #ff9ca8;
+
+            background:
+                rgba(255, 80, 105, 0.09);
+
+            border-color:
+                rgba(255, 80, 105, 0.18);
+
+            box-shadow:
+                0 0 22px rgba(255, 70, 95, 0.10);
+
+            transform: translateY(-2px);
+        }
+
+
+        /* =========================================================
+           FLASH MESSAGE
+           ========================================================= */
+
+        .flash-wrap {
+
+            position: fixed;
+
+            top: 92px;
+            right: 24px;
+
+            z-index: 99999;
+
+            width: min(390px, calc(100% - 32px));
+
+            display: flex;
+            flex-direction: column;
+
+            gap: 10px;
+
+            pointer-events: none;
+        }
+
+
+        .flash {
+
+            padding: 13px 16px;
+
+            border-radius: 14px;
+
+            font-size: 13px;
+            font-weight: 600;
+
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+
+            animation:
+                flashEnter 0.4s ease both,
+                flashFloat 3s ease-in-out 0.4s infinite;
+
+            box-shadow:
+                0 15px 40px rgba(0,0,0,0.25);
+        }
+
+
+        .flash.success {
+
+            color: #78f2c0;
+
+            background:
+                rgba(25, 190, 125, 0.10);
+
+            border:
+                1px solid rgba(70, 240, 170, 0.22);
+
+            box-shadow:
+                0 0 25px rgba(40, 220, 150, 0.08);
+        }
+
+
+        .flash.error {
+
+            color: #ff8491;
+
+            background:
+                rgba(255, 65, 85, 0.09);
+
+            border:
+                1px solid rgba(255, 80, 100, 0.20);
+
+            box-shadow:
+                0 0 25px rgba(255, 65, 85, 0.08);
+        }
+
+
+        @keyframes flashEnter {
+
+            from {
+                opacity: 0;
+                transform: translateX(35px) scale(0.96);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+            }
+
+        }
+
+
+        @keyframes flashFloat {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-2px);
+            }
+
+        }
+
+
+        /* =========================================================
+           MAIN
+           ========================================================= */
+
+        main {
+            position: relative;
+            min-height: calc(100vh - 76px);
+        }
+
+
+        /* =========================================================
+           RESPONSIVE NAVBAR
+           ========================================================= */
+
+        @media (max-width: 760px) {
+
+            .nav {
+
+                min-height: 70px;
+
+                padding: 0 18px;
+            }
+
+
+            .nav .brand {
+
+                font-size: 23px;
+            }
+
+
+            .navlinks {
+
+                gap: 3px;
+            }
+
+
+            .navlinks a {
+
+                min-height: 38px;
+
+                padding: 0 9px;
+
+                font-size: 12px;
+
+                border-radius: 10px;
+            }
+
+        }
+
+
+        @media (max-width: 560px) {
+
+            .nav {
+
+                min-height: 66px;
+
+                padding: 0 12px;
+            }
+
+
+            .nav .brand {
+
+                font-size: 21px;
+
+                letter-spacing: -1px;
+            }
+
+
+            .navlinks a {
+
+                padding: 0 6px;
+
+                min-height: 34px;
+
+                font-size: 11px;
+            }
+
+
+            .navlinks {
+
+                gap: 1px;
+            }
+
+
+            .flash-wrap {
+
+                top: 78px;
+
+                right: 16px;
+
+                width: calc(100% - 32px);
+            }
+
+        }
+
+
+        /* =========================================================
+           REDUCED MOTION
+           ========================================================= */
+
+        @media (prefers-reduced-motion: reduce) {
+
+            .nav,
+            .nav *,
+            .nav::before,
+            .nav::after,
+            .flash {
+
+                animation: none !important;
+                transition: none !important;
+            }
+
+        }
+
+    </style>
+</head>
+
+
+<body>
+
+    {% if session.get('user_id') %}
+
+    <nav class="nav">
+
+        <!-- LOGO -->
+        <a class="brand" href="{{ url_for('home') }}">
+            AI<span>Resume</span>
+        </a>
+
+
+        <!-- NAVIGATION -->
+        <div class="navlinks">
+
+            <a href="{{ url_for('home') }}">
+                Analyze
+            </a>
+
+            <a href="{{ url_for('history') }}">
+                History
+            </a>
+
+            <a href="{{ url_for('profile') }}">
+                Profile
+            </a>
+
+            <a class="logout" href="{{ url_for('logout') }}">
+                Logout
+            </a>
+
+        </div>
+
+    </nav>
+
+    {% endif %}
+
+
+    <main>
+
+        {% with messages=get_flashed_messages(with_categories=true) %}
+
+            {% if messages %}
+
+                <div class="flash-wrap">
+
+                    {% for category,message in messages %}
+
+                        <div class="flash {{ category }}">
+                            {{ message }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            {% endif %}
+
+        {% endwith %}
+
+
+        {% block content %}
+        {% endblock %}
+
+    </main>
+
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+    {% block scripts %}
+    {% endblock %}
+
+</body>
+
+</html>

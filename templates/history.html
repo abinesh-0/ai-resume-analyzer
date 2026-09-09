@@ -1,0 +1,1205 @@
+{% extends 'base.html' %}
+
+{% block title %}
+History | AI Resume Analyzer
+{% endblock %}
+
+{% block content %}
+
+<style>
+
+/* =========================================================
+   PREMIUM HISTORY PAGE
+   Theme: Midnight Black + Emerald + Gold
+   UI ONLY
+   ========================================================= */
+
+.history-page {
+    position: relative;
+
+    min-height: calc(100vh - 76px);
+
+    padding: 55px 22px 80px;
+
+    overflow: hidden;
+
+    color: #f5f8f6;
+
+    background:
+        radial-gradient(
+            circle at 8% 12%,
+            rgba(46, 220, 145, 0.13),
+            transparent 28%
+        ),
+        radial-gradient(
+            circle at 92% 18%,
+            rgba(255, 190, 70, 0.09),
+            transparent 25%
+        ),
+        radial-gradient(
+            circle at 50% 110%,
+            rgba(28, 160, 110, 0.12),
+            transparent 35%
+        ),
+        linear-gradient(
+            135deg,
+            #050908 0%,
+            #0a110f 45%,
+            #080d0b 100%
+        );
+}
+
+
+/* =========================================================
+   BACKGROUND LIGHTS
+   ========================================================= */
+
+.history-page::before {
+    content: "";
+
+    position: absolute;
+
+    width: 520px;
+    height: 520px;
+
+    top: -250px;
+    left: -170px;
+
+    border-radius: 50%;
+
+    background:
+        rgba(44, 220, 143, 0.11);
+
+    filter: blur(100px);
+
+    animation:
+        historyOrbOne 9s ease-in-out infinite alternate;
+
+    pointer-events: none;
+}
+
+
+.history-page::after {
+    content: "";
+
+    position: absolute;
+
+    width: 480px;
+    height: 480px;
+
+    right: -180px;
+    bottom: -240px;
+
+    border-radius: 50%;
+
+    background:
+        rgba(255, 191, 70, 0.08);
+
+    filter: blur(100px);
+
+    animation:
+        historyOrbTwo 11s ease-in-out infinite alternate;
+
+    pointer-events: none;
+}
+
+
+@keyframes historyOrbOne {
+
+    from {
+        transform: translate(0, 0) scale(1);
+    }
+
+    to {
+        transform: translate(120px, 90px) scale(1.15);
+    }
+
+}
+
+
+@keyframes historyOrbTwo {
+
+    from {
+        transform: translate(0, 0) scale(1);
+    }
+
+    to {
+        transform: translate(-100px, -80px) scale(1.18);
+    }
+
+}
+
+
+/* =========================================================
+   SUBTLE GRID
+   ========================================================= */
+
+.history-page .history-grid {
+    position: absolute;
+
+    inset: 0;
+
+    background-image:
+        linear-gradient(
+            rgba(255,255,255,0.025) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(255,255,255,0.025) 1px,
+            transparent 1px
+        );
+
+    background-size: 55px 55px;
+
+    mask-image:
+        linear-gradient(
+            to bottom,
+            black,
+            transparent 90%
+        );
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   MAIN CONTAINER
+   ========================================================= */
+
+.history-page .history-container {
+
+    position: relative;
+
+    z-index: 2;
+
+    width: min(1180px, 100%);
+
+    margin: 0 auto;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.history-page .page-head {
+
+    text-align: center;
+
+    max-width: 760px;
+
+    margin: 0 auto 38px;
+
+    animation:
+        historyHeaderIn 0.8s
+        cubic-bezier(.2,.8,.2,1)
+        both;
+}
+
+
+@keyframes historyHeaderIn {
+
+    from {
+        opacity: 0;
+        transform:
+            translateY(28px)
+            scale(.98);
+    }
+
+    to {
+        opacity: 1;
+        transform:
+            translateY(0)
+            scale(1);
+    }
+
+}
+
+
+/* =========================================================
+   EYEBROW
+   ========================================================= */
+
+.history-page .eyebrow {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 9px;
+
+    margin-bottom: 16px;
+
+    padding: 8px 14px;
+
+    border-radius: 999px;
+
+    color: #55e2a0;
+
+    background:
+        rgba(55, 220, 145, 0.065);
+
+    border:
+        1px solid rgba(55, 220, 145, 0.18);
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    letter-spacing: 1.8px;
+
+    box-shadow:
+        0 0 25px rgba(45, 220, 145, 0.07);
+
+    animation:
+        eyebrowPulse 3s
+        ease-in-out
+        infinite;
+}
+
+
+.history-page .eyebrow::before {
+
+    content: "";
+
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: #55e2a0;
+
+    box-shadow:
+        0 0 7px rgba(85, 226, 160, 0.9),
+        0 0 16px rgba(85, 226, 160, 0.5);
+
+    animation:
+        historyDot 1.6s
+        ease-in-out
+        infinite;
+}
+
+
+@keyframes historyDot {
+
+    0%,
+    100% {
+        opacity: .5;
+        transform: scale(.8);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.15);
+    }
+
+}
+
+
+@keyframes eyebrowPulse {
+
+    0%,
+    100% {
+        box-shadow:
+            0 0 20px rgba(45,220,145,.05);
+    }
+
+    50% {
+        box-shadow:
+            0 0 30px rgba(45,220,145,.12);
+    }
+
+}
+
+
+/* =========================================================
+   MAIN HEADING
+   ========================================================= */
+
+.history-page .page-head h1 {
+
+    margin: 0;
+
+    color: #f7faf8;
+
+    font-size:
+        clamp(38px, 5vw, 62px);
+
+    line-height: 1.04;
+
+    font-weight: 900;
+
+    letter-spacing: -2.8px;
+
+    text-shadow:
+        0 5px 30px rgba(0,0,0,.35);
+}
+
+
+/* Highlight */
+
+.history-page .page-head h1::after {
+
+    content: "";
+
+    display: block;
+
+    width: 90px;
+    height: 3px;
+
+    margin: 18px auto 0;
+
+    border-radius: 999px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            #4ce39a,
+            #f0bf59,
+            transparent
+        );
+
+    box-shadow:
+        0 0 15px rgba(65,220,145,.35);
+
+    animation:
+        lineGlow 3s
+        ease-in-out
+        infinite;
+}
+
+
+@keyframes lineGlow {
+
+    0%,
+    100% {
+        opacity: .45;
+        transform: scaleX(.7);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scaleX(1.15);
+    }
+
+}
+
+
+/* =========================================================
+   DESCRIPTION
+   ========================================================= */
+
+.history-page .page-head .muted {
+
+    max-width: 680px;
+
+    margin:
+        20px auto 0;
+
+    color: #aab8b1 !important;
+
+    font-size: 15px;
+
+    line-height: 1.8;
+
+    font-weight: 500;
+}
+
+
+/* =========================================================
+   TABLE PANEL
+   ========================================================= */
+
+.history-page .panel {
+
+    position: relative;
+
+    width: 100%;
+
+    margin: 0 auto;
+
+    padding: 8px;
+
+    border-radius: 25px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.065),
+            rgba(255,255,255,.018)
+        );
+
+    border:
+        1px solid rgba(155, 220, 190, .13);
+
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+
+    box-shadow:
+        0 30px 80px rgba(0,0,0,.38),
+        0 0 50px rgba(40,200,130,.055),
+        inset 0 1px 0 rgba(255,255,255,.065);
+
+    animation:
+        panelEnter .9s
+        cubic-bezier(.2,.8,.2,1)
+        .18s
+        both;
+
+    overflow: hidden;
+}
+
+
+@keyframes panelEnter {
+
+    from {
+        opacity: 0;
+        transform:
+            translateY(35px)
+            scale(.985);
+    }
+
+    to {
+        opacity: 1;
+        transform:
+            translateY(0)
+            scale(1);
+    }
+
+}
+
+
+/* Moving panel light */
+
+.history-page .panel::before {
+
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: -30%;
+
+    width: 35%;
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            #53e5a0,
+            #f0c45f,
+            transparent
+        );
+
+    animation:
+        panelLight 5s
+        linear
+        infinite;
+}
+
+
+@keyframes panelLight {
+
+    from {
+        left: -35%;
+    }
+
+    to {
+        left: 110%;
+    }
+
+}
+
+
+/* =========================================================
+   TABLE WRAPPER
+   ========================================================= */
+
+.history-page .table-wrap {
+
+    width: 100%;
+
+    overflow-x: auto;
+
+    border-radius: 19px;
+
+    background:
+        rgba(4, 9, 7, 0.58);
+
+    scrollbar-width: thin;
+
+    scrollbar-color:
+        rgba(74,220,150,.35)
+        transparent;
+}
+
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+.history-page table {
+
+    width: 100%;
+
+    min-width: 850px;
+
+    border-collapse: separate;
+
+    border-spacing: 0;
+
+    color: #eaf2ed;
+}
+
+
+/* =========================================================
+   TABLE HEADER
+   ========================================================= */
+
+.history-page thead th {
+
+    position: sticky;
+
+    top: 0;
+
+    padding: 19px 20px;
+
+    background:
+        rgba(21, 35, 29, 0.94);
+
+    color: #91a89d;
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    letter-spacing: 1.2px;
+
+    text-transform: uppercase;
+
+    text-align: left;
+
+    border-bottom:
+        1px solid
+        rgba(120,210,170,.12);
+
+    white-space: nowrap;
+}
+
+
+.history-page thead th:first-child {
+
+    border-top-left-radius: 17px;
+}
+
+
+.history-page thead th:last-child {
+
+    border-top-right-radius: 17px;
+}
+
+
+/* =========================================================
+   TABLE BODY
+   ========================================================= */
+
+.history-page tbody tr {
+
+    transition:
+        background .25s ease,
+        transform .25s ease;
+}
+
+
+.history-page tbody tr:hover {
+
+    background:
+        rgba(70, 220, 145, 0.045);
+}
+
+
+/* =========================================================
+   TABLE CELLS
+   ========================================================= */
+
+.history-page tbody td {
+
+    padding: 20px;
+
+    border-bottom:
+        1px solid
+        rgba(255,255,255,.055);
+
+    color: #c4d0c9;
+
+    font-size: 13px;
+
+    vertical-align: middle;
+}
+
+
+.history-page tbody tr:last-child td {
+
+    border-bottom: none;
+}
+
+
+/* =========================================================
+   CAREER NAME
+   ========================================================= */
+
+.history-page tbody td strong {
+
+    display: block;
+
+    color: #f2f7f4;
+
+    font-size: 14px;
+
+    font-weight: 750;
+
+    transition:
+        color .25s ease,
+        transform .25s ease;
+}
+
+
+.history-page tbody tr:hover td strong {
+
+    color: #5ce3a0;
+
+    transform: translateX(3px);
+}
+
+
+/* =========================================================
+   FILENAME
+   ========================================================= */
+
+.history-page tbody td small {
+
+    display: block;
+
+    max-width: 190px;
+
+    margin-top: 5px;
+
+    color: #72837a;
+
+    font-size: 10.5px;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   MATCH PERCENTAGE
+   ========================================================= */
+
+.history-page tbody td:nth-child(2) strong {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    min-width: 58px;
+
+    padding: 7px 10px;
+
+    border-radius: 10px;
+
+    color: #55e29d;
+
+    background:
+        rgba(62, 220, 145, .075);
+
+    border:
+        1px solid
+        rgba(62, 220, 145, .13);
+
+    box-shadow:
+        0 0 16px
+        rgba(62, 220, 145, .05);
+}
+
+
+/* =========================================================
+   RESUME SCORE
+   ========================================================= */
+
+.history-page tbody td:nth-child(3) {
+
+    color: #d9e3dd;
+
+    font-weight: 650;
+}
+
+
+/* =========================================================
+   DATE
+   ========================================================= */
+
+.history-page tbody td:nth-child(4) {
+
+    color: #91a198;
+
+    font-size: 12px;
+
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   RECOMMENDED STAR
+   ========================================================= */
+
+.history-page .star {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    padding: 7px 11px;
+
+    border-radius: 999px;
+
+    color: #f4ca65;
+
+    background:
+        rgba(245, 194, 77, .07);
+
+    border:
+        1px solid
+        rgba(245, 194, 77, .15);
+
+    font-size: 11px;
+
+    font-weight: 750;
+
+    box-shadow:
+        0 0 18px
+        rgba(245, 194, 77, .045);
+
+    animation:
+        starGlow 3s
+        ease-in-out
+        infinite;
+}
+
+
+@keyframes starGlow {
+
+    0%,
+    100% {
+        box-shadow:
+            0 0 12px rgba(245,194,77,.035);
+    }
+
+    50% {
+        box-shadow:
+            0 0 23px rgba(245,194,77,.10);
+    }
+
+}
+
+
+/* =========================================================
+   VIEW BUTTON
+   ========================================================= */
+
+.history-page tbody td:last-child {
+
+    text-align: right;
+}
+
+
+.history-page tbody td:last-child a {
+
+    position: relative;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    min-width: 70px;
+
+    padding: 9px 14px;
+
+    border-radius: 10px;
+
+    color: #63dfa2;
+
+    background:
+        rgba(65, 220, 145, .055);
+
+    border:
+        1px solid
+        rgba(65, 220, 145, .14);
+
+    text-decoration: none;
+
+    font-size: 11px;
+
+    font-weight: 750;
+
+    transition:
+        all .25s ease;
+
+    overflow: hidden;
+}
+
+
+.history-page tbody td:last-child a::before {
+
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: -100%;
+
+    width: 70%;
+    height: 100%;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255,255,255,.12),
+            transparent
+        );
+
+    transform: skewX(-20deg);
+
+    transition:
+        left .45s ease;
+}
+
+
+.history-page tbody td:last-child a:hover::before {
+
+    left: 130%;
+}
+
+
+.history-page tbody td:last-child a:hover {
+
+    color: #d7ffe9;
+
+    background:
+        rgba(65, 220, 145, .12);
+
+    border-color:
+        rgba(65, 220, 145, .30);
+
+    transform:
+        translateY(-2px);
+
+    box-shadow:
+        0 8px 25px
+        rgba(45, 220, 145, .10);
+}
+
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.history-page .empty {
+
+    padding: 55px 20px !important;
+
+    text-align: center !important;
+
+    color: #82938a !important;
+
+    font-size: 14px !important;
+}
+
+.clear-history-btn {
+    padding: 10px 18px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    background: #1a1a1a;
+    color: #ffffff;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.clear-history-btn:hover {
+    opacity: 0.85;
+}
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+    .history-page {
+
+        padding:
+            40px 14px 60px;
+    }
+
+
+    .history-page .page-head h1 {
+
+        font-size: 39px;
+
+        letter-spacing: -2px;
+    }
+
+
+    .history-page .page-head .muted {
+
+        font-size: 13px;
+
+        line-height: 1.7;
+    }
+
+
+    .history-page .panel {
+
+        padding: 6px;
+
+        border-radius: 20px;
+    }
+
+
+    .history-page .table-wrap {
+
+        border-radius: 15px;
+    }
+
+
+    .history-page thead th {
+
+        padding:
+            16px 15px;
+    }
+
+
+    .history-page tbody td {
+
+        padding:
+            17px 15px;
+    }
+
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .history-page *,
+    .history-page::before,
+    .history-page::after {
+
+        animation: none !important;
+
+        transition: none !important;
+    }
+
+}
+
+</style>
+
+
+<section class="history-page">
+
+    <!-- Background grid -->
+    <div class="history-grid"></div>
+
+
+    <div class="history-container">
+
+        <!-- =====================================================
+             HEADER
+             ===================================================== -->
+
+        <section class="page-head">
+
+            <p class="eyebrow">
+                YOUR ANALYSIS HISTORY
+            </p>
+
+            <h1>
+                Compare your career matches.
+            </h1>
+
+            <p class="muted">
+                Every analysis is saved to your account so you can
+                compare careers and make a final choice.
+            </p>
+
+            <form
+    method="POST"
+    action="{{ url_for('clear_history') }}"
+    onsubmit="return confirm('Are you sure you want to clear all your history? This action cannot be undone.');"
+>
+    <button type="submit" class="clear-history-btn">
+        Clear All History
+    </button>
+</form>
+
+        </section>
+
+
+        <!-- =====================================================
+             HISTORY TABLE
+             ===================================================== -->
+
+        <section class="panel">
+
+            <div class="table-wrap">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Career
+                            </th>
+
+                            <th>
+                                Match
+                            </th>
+
+                            <th>
+                                Resume Score
+                            </th>
+
+                            <th>
+                                Date / Time
+                            </th>
+
+                            <th>
+                                Recommendation
+                            </th>
+
+                            <th>
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        {% for row in analyses %}
+
+                        <tr>
+
+                            <td>
+
+                                <strong>
+                                    {{ row.target_career }}
+                                </strong>
+
+                                <small>
+                                    {{ row.filename }}
+                                </small>
+
+                            </td>
+
+
+                            <td>
+
+                                <strong>
+                                    {{ '%.0f'|format(row.match_percentage) }}%
+                                </strong>
+
+                            </td>
+
+
+                            <td>
+
+                                {{ '%.0f'|format(row.resume_score) }}/100
+
+                            </td>
+
+
+                            <td>
+
+                                {{ row.created_at }}
+
+                            </td>
+
+
+                            <td>
+
+                                {% if row.recommended %}
+
+                                <span class="star">
+                                    ★ Recommended
+                                </span>
+
+                                {% else %}
+
+                                <span class="muted">
+                                    —
+                                </span>
+
+                                {% endif %}
+
+                            </td>
+
+
+                            <td>
+
+                                <a href="{{ url_for('history_detail', analysis_id=row.id) }}">
+                                    View
+                                </a>
+
+                            </td>
+
+                        </tr>
+
+
+                        {% else %}
+
+                        <tr>
+
+                            <td colspan="6" class="empty">
+
+                                No analyses yet.
+                                Start with Analyze.
+
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </div>
+
+</section>
+
+{% endblock %}

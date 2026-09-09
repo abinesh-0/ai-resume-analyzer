@@ -1,0 +1,21 @@
+# AI Resume Analyzer
+
+A Flask + MySQL resume analysis application with email OTP registration, password reset, target-career matching, skill-gap analysis, learning topics, career roadmaps, project recommendations and per-user history.
+
+## Run locally
+1. Do not include `venv/` or real `.env` secrets in a ZIP/Git repository.
+2. Create a virtual environment: `python -m venv venv`
+3. Activate it: Windows `venv\Scripts\activate`
+4. Install dependencies: `pip install -r requirements.txt`
+5. Create the MySQL database/tables using `database.sql`.
+6. Copy `.env.example` to `.env` and fill in your local MySQL and SMTP values.
+7. Start: `python app.py`
+
+### Gmail
+Use a Gmail App Password for `MAIL_PASSWORD`; never put the real value in GitHub or the project ZIP.
+
+### Tesseract
+Scanned-PDF OCR requires Tesseract OCR installed on the machine and available on PATH (or configured through your OS).
+
+## Production notes
+Set `FLASK_DEBUG=false`, use a strong `SECRET_KEY`, keep `.env` private, use HTTPS, and configure the production WSGI server/database.

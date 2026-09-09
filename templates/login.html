@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Login | AI Resume Analyzer</title>
+
+<link rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}">
+
+<style>
+
+/* =========================================================
+   PREMIUM LOGIN PAGE
+   UI ONLY — BACKEND / INPUT NAMES UNCHANGED
+   ========================================================= */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+}
+
+body.auth-body {
+    min-height: 100vh;
+    overflow: hidden;
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont,
+                 "Segoe UI", sans-serif;
+    color: #ffffff;
+    background:
+        radial-gradient(circle at 15% 20%, rgba(0, 183, 255, .18), transparent 30%),
+        radial-gradient(circle at 85% 15%, rgba(132, 66, 255, .18), transparent 30%),
+        radial-gradient(circle at 50% 100%, rgba(0, 255, 174, .10), transparent 35%),
+        #050814;
+    position: relative;
+}
+
+/* =========================================================
+   ANIMATED BACKGROUND
+   ========================================================= */
+
+.auth-body::before {
+    content: "";
+    position: fixed;
+    inset: -30%;
+    background:
+        conic-gradient(
+            from 0deg,
+            transparent,
+            rgba(0, 183, 255, .08),
+            transparent,
+            rgba(139, 92, 246, .08),
+            transparent
+        );
+    animation: backgroundSpin 22s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes backgroundSpin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* =========================================================
+   FLOATING LIGHTS
+   ========================================================= */
+
+.auth-body::after {
+    content: "";
+    position: fixed;
+    width: 420px;
+    height: 420px;
+    left: -180px;
+    top: -150px;
+    border-radius: 50%;
+    background: rgba(0, 183, 255, .16);
+    filter: blur(80px);
+    animation: blueOrb 8s ease-in-out infinite alternate;
+    pointer-events: none;
+}
+
+@keyframes blueOrb {
+    0% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    100% {
+        transform: translate(160px, 120px) scale(1.25);
+    }
+}
+
+/* =========================================================
+   EXTRA FLOATING ORB
+   ========================================================= */
+
+.auth-body {
+    isolation: isolate;
+}
+
+.auth-body .auth-card::before {
+    content: "";
+    position: fixed;
+    width: 300px;
+    height: 300px;
+    right: -100px;
+    bottom: -100px;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, .16);
+    filter: blur(75px);
+    animation: purpleOrb 9s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: -1;
+}
+
+@keyframes purpleOrb {
+    0% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    100% {
+        transform: translate(-120px, -100px) scale(1.3);
+    }
+}
+
+/* =========================================================
+   CARD
+   ========================================================= */
+
+.auth-card {
+    position: relative;
+    z-index: 5;
+
+    width: min(380px, calc(100% - 32px));
+    margin: auto;
+    padding: 28px 28px 24px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.085),
+            rgba(255,255,255,.035)
+        );
+
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 24px;
+
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+
+    box-shadow:
+        0 30px 80px rgba(0,0,0,.48),
+        inset 0 1px 0 rgba(255,255,255,.10);
+
+    animation:
+        cardEntrance .8s cubic-bezier(.16,1,.3,1),
+        cardFloat 6s ease-in-out 1s infinite;
+
+    overflow: hidden;
+}
+
+/* animated premium border */
+
+.auth-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+
+    border-radius: inherit;
+
+    padding: 1px;
+
+    background:
+        linear-gradient(
+            120deg,
+            rgba(0,183,255,.7),
+            transparent 30%,
+            rgba(139,92,246,.65),
+            transparent 70%,
+            rgba(0,255,174,.5)
+        );
+
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+
+    mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+
+    opacity: .55;
+    animation: borderMove 5s linear infinite;
+
+    pointer-events: none;
+}
+
+@keyframes borderMove {
+    0% {
+        transform: rotate(0deg) scale(1);
+    }
+
+    50% {
+        transform: rotate(180deg) scale(1.01);
+    }
+
+    100% {
+        transform: rotate(360deg) scale(1);
+    }
+}
+
+@keyframes cardEntrance {
+    from {
+        opacity: 0;
+        transform: translateY(35px) scale(.94);
+        filter: blur(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+@keyframes cardFloat {
+    0%,100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+/* =========================================================
+   BRAND
+   ========================================================= */
+
+.brand.big {
+    font-size: 23px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 18px;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+
+    animation: brandAppear .8s ease both;
+}
+
+.brand.big::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+
+    background: #35d7ff;
+
+    box-shadow:
+        0 0 8px #35d7ff,
+        0 0 20px rgba(53,215,255,.8);
+
+    animation: logoPulse 2s ease-in-out infinite;
+}
+
+.brand.big span {
+    background:
+        linear-gradient(
+            90deg,
+            #42dfff,
+            #8b5cf6,
+            #54f7c2
+        );
+
+    background-size: 200% auto;
+
+    -webkit-background-clip: text;
+    background-clip: text;
+
+    -webkit-text-fill-color: transparent;
+
+    animation: gradientText 4s linear infinite;
+}
+
+@keyframes gradientText {
+    to {
+        background-position: 200% center;
+    }
+}
+
+@keyframes logoPulse {
+    0%,100% {
+        transform: scale(1);
+        opacity: .7;
+    }
+
+    50% {
+        transform: scale(1.5);
+        opacity: 1;
+    }
+}
+
+@keyframes brandAppear {
+    from {
+        opacity: 0;
+        transform: translateX(-12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* =========================================================
+   TEXT
+   ========================================================= */
+
+.eyebrow {
+    display: inline-block;
+
+    margin: 0 0 8px;
+
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1.8px;
+
+    color: #5ddcff;
+
+    padding: 5px 9px;
+
+    border-radius: 20px;
+
+    background: rgba(0,183,255,.08);
+    border: 1px solid rgba(0,183,255,.15);
+
+    box-shadow: 0 0 20px rgba(0,183,255,.08);
+}
+
+.auth-card h1 {
+    margin: 0;
+
+    font-size: 29px;
+    line-height: 1.15;
+
+    letter-spacing: -.8px;
+
+    background:
+        linear-gradient(
+            100deg,
+            #ffffff,
+            #bdefff,
+            #ffffff
+        );
+
+    background-size: 200% auto;
+
+    -webkit-background-clip: text;
+    background-clip: text;
+
+    -webkit-text-fill-color: transparent;
+
+    animation: titleShine 5s linear infinite;
+}
+
+@keyframes titleShine {
+    to {
+        background-position: 200% center;
+    }
+}
+
+.muted {
+    margin: 9px 0 21px;
+
+    color: rgba(220,232,245,.62);
+
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+/* =========================================================
+   FORM
+   ========================================================= */
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+/* =========================================================
+   LOGIN ERROR
+   ========================================================= */
+
+.login-error {
+    display: block;
+    margin: 1px 0 2px;
+    color: #ff5b68;
+    font-size: 10.5px;
+    font-weight: 600;
+    animation: errorAppear .25s ease;
+}
+
+.password-wrap.login-error-shake {
+    animation: passwordShake .45s ease;
+}
+
+.password-wrap.login-error-shake input {
+    border-color: #ff4f5f !important;
+
+    box-shadow:
+        0 0 0 3px rgba(255, 79, 95, .08),
+        0 0 20px rgba(255, 79, 95, .12) !important;
+}
+
+@keyframes passwordShake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+
+    20% {
+        transform: translateX(-6px);
+    }
+
+    40% {
+        transform: translateX(6px);
+    }
+
+    60% {
+        transform: translateX(-4px);
+    }
+
+    80% {
+        transform: translateX(4px);
+    }
+}
+
+@keyframes errorAppear {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.form label {
+    margin-top: 4px;
+
+    font-size: 11px;
+    font-weight: 700;
+
+    color: rgba(255,255,255,.78);
+}
+
+/* =========================================================
+   INPUTS
+   ========================================================= */
+
+.form input {
+    width: 100%;
+    height: 43px;
+
+    padding: 0 13px;
+
+    border-radius: 11px;
+
+    border: 1px solid rgba(255,255,255,.10);
+
+    outline: none;
+
+    background:
+        rgba(5,12,27,.72);
+
+    color: #ffffff;
+
+    font-size: 12px;
+
+    transition:
+        border .25s ease,
+        box-shadow .25s ease,
+        transform .2s ease,
+        background .25s ease;
+}
+
+.form input::placeholder {
+    color: rgba(190,205,220,.38);
+}
+
+.form input:hover {
+    border-color: rgba(93,220,255,.25);
+}
+
+.form input:focus {
+    border-color: #42dfff;
+
+    background:
+        rgba(6,18,35,.9);
+
+    box-shadow:
+        0 0 0 3px rgba(66,223,255,.08),
+        0 0 25px rgba(66,223,255,.10);
+
+    transform: translateY(-1px);
+}
+
+/* =========================================================
+   FORGOT PASSWORD
+   ========================================================= */
+
+.form-row.right {
+    display: flex;
+    justify-content: flex-end;
+
+    margin-top: 1px;
+    margin-bottom: 5px;
+}
+
+.form-row.right a {
+    font-size: 10.5px;
+    font-weight: 600;
+
+    color: #65dfff;
+
+    text-decoration: none;
+
+    transition:
+        color .2s ease,
+        text-shadow .2s ease;
+}
+
+.form-row.right a:hover {
+    color: #ffffff;
+
+    text-shadow:
+        0 0 12px rgba(101,223,255,.8);
+}
+
+/* =========================================================
+   LOGIN BUTTON
+   ========================================================= */
+
+.btn.primary {
+    position: relative;
+
+    width: 100%;
+    height: 44px;
+
+    margin-top: 4px;
+
+    border: 0;
+    border-radius: 12px;
+
+    cursor: pointer;
+
+    color: #ffffff;
+
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .3px;
+
+    background:
+        linear-gradient(
+            100deg,
+            #008cff,
+            #7c4dff,
+            #00c6ff,
+            #00d99b
+        );
+
+    background-size: 300% 100%;
+
+    box-shadow:
+        0 10px 25px rgba(0,140,255,.18);
+
+    overflow: hidden;
+
+    transition:
+        transform .2s ease,
+        box-shadow .25s ease;
+
+    animation:
+        buttonGradient 5s linear infinite;
+}
+
+@keyframes buttonGradient {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+
+.password-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.password-wrap input {
+    padding-right: 45px;
+}
+
+.password-eye {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+
+    width: 32px;
+    height: 32px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: none;
+    border-radius: 9px;
+
+    background: transparent;
+    color: rgba(190, 220, 235, .55);
+
+    cursor: pointer;
+
+    transition:
+        color .2s ease,
+        background .2s ease,
+        transform .2s ease;
+}
+
+.password-eye svg {
+    width: 17px;
+    height: 17px;
+}
+
+.password-eye:hover {
+    color: #5ddcff;
+    background: rgba(93, 220, 255, .08);
+
+    transform: translateY(-50%) scale(1.08);
+}
+
+.password-eye:active {
+    transform: translateY(-50%) scale(.94);
+}
+/* moving light */
+
+.btn.primary::before {
+    content: "";
+
+    position: absolute;
+
+    top: -100%;
+    left: -50%;
+
+    width: 35%;
+    height: 300%;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255,255,255,.55),
+            transparent
+        );
+
+    transform: rotate(20deg);
+
+    animation: buttonShine 3s ease-in-out infinite;
+}
+
+@keyframes buttonShine {
+    0% {
+        left: -60%;
+    }
+
+    45%,100% {
+        left: 130%;
+    }
+}
+
+.btn.primary:hover {
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 15px 35px rgba(0,140,255,.30),
+        0 0 25px rgba(124,77,255,.16);
+}
+
+.btn.primary:active {
+    transform: translateY(0) scale(.98);
+}
+
+/* =========================================================
+   CREATE ACCOUNT
+   ========================================================= */
+
+.switch {
+    margin: 17px 0 0;
+
+    text-align: center;
+
+    color: rgba(220,232,245,.52);
+
+    font-size: 10.5px;
+}
+
+.switch a {
+    position: relative;
+
+    color: #70e6c1;
+
+    font-weight: 800;
+
+    text-decoration: none;
+
+    transition: color .2s ease;
+}
+
+.switch a:hover {
+    color: #ffffff;
+}
+
+.switch a::after {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    bottom: -3px;
+
+    width: 0;
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            #42dfff,
+            #70e6c1
+        );
+
+    transition: width .25s ease;
+}
+
+.switch a:hover::after {
+    width: 100%;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 500px) {
+
+    body.auth-body {
+        overflow-y: auto;
+    }
+
+    .auth-card {
+        width: calc(100% - 26px);
+        padding: 24px 21px 21px;
+        border-radius: 21px;
+    }
+
+    .auth-card h1 {
+        font-size: 26px;
+    }
+
+    .muted {
+        font-size: 11px;
+    }
+}
+
+/* =========================================================
+   REDUCE MOTION ACCESSIBILITY
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+</style>
+</head>
+
+<body class="auth-body">
+
+<section class="auth-card">
+
+    <div class="brand big">
+        AI<span>Resume</span>
+    </div>
+
+    <p class="eyebrow">SMART CAREER ANALYSIS</p>
+
+    <h1>Welcome back</h1>
+
+    <p class="muted">
+        Sign in to analyze your resume and explore the right career path.
+    </p>
+
+    <form method="post" class="form">
+
+        <label>Email</label>
+
+        <input
+            type="email"
+            name="email"
+            value="{{ prefill_email or '' }}"
+            placeholder="you@example.com"
+            required
+        >
+
+       <label>Password</label>
+
+<div class="password-wrap">
+    <input 
+        type="password" 
+        name="password" 
+        id="loginPassword" 
+        placeholder="Enter your password" 
+        required
+    >
+
+    <button 
+        type="button" 
+        class="password-eye" 
+        id="passwordEye" 
+        aria-label="Show password">
+
+        <svg id="eyeOpen"
+             viewBox="0 0 24 24"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="1.8"
+             stroke-linecap="round"
+             stroke-linejoin="round">
+            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/>
+            <circle cx="12" cy="12" r="2.5"/>
+        </svg>
+
+        <svg id="eyeClosed"
+             viewBox="0 0 24 24"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="1.8"
+             stroke-linecap="round"
+             stroke-linejoin="round"
+             style="display:none;">
+            <path d="M3 3l18 18"/>
+            <path d="M10.6 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17.5 17.5 0 0 1-3.2 3.9"/>
+            <path d="M6.2 6.3C3.5 8.2 2 12 2 12s3.5 7 10 7c1.4 0 2.7-.3 3.8-.8"/>
+            <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>
+        </svg>
+
+    </button>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+        {% if category == "error" and message == "Invalid email or password." %}
+            <p id="loginError" class="login-error">
+                {{ message }}
+            </p>
+        {% endif %}
+    {% endfor %}
+{% endwith %}
+
+        <div class="form-row right">
+            <a href="{{ url_for('forgot_password') }}">
+                Forgot password?
+            </a>
+        </div>
+
+        <button
+            class="btn primary"
+            type="submit">
+            Login
+        </button>
+
+    </form>
+
+    <p class="switch">
+        Don't have an account?
+        <a href="{{ url_for('register') }}">
+            Create account
+        </a>
+    </p>
+
+</section>
+
+      <script>
+const passwordInput = document.getElementById("loginPassword");
+const passwordEye = document.getElementById("passwordEye");
+const eyeOpen = document.getElementById("eyeOpen");
+const eyeClosed = document.getElementById("eyeClosed");
+
+passwordEye.addEventListener("click", function () {
+
+    if (passwordInput.type === "password") {
+
+        passwordInput.type = "text";
+
+        eyeOpen.style.display = "none";
+        eyeClosed.style.display = "block";
+
+        passwordEye.setAttribute(
+            "aria-label",
+            "Hide password"
+        );
+
+    } else {
+
+        passwordInput.type = "password";
+
+        eyeOpen.style.display = "block";
+        eyeClosed.style.display = "none";
+
+        passwordEye.setAttribute(
+            "aria-label",
+            "Show password"
+        );
+    }
+
+    passwordInput.focus();
+});
+
+
+const loginError = document.getElementById("loginError");
+const passwordWrap = document.querySelector(".password-wrap");
+
+if (loginError && passwordWrap) {
+
+    passwordWrap.classList.add("login-error-shake");
+
+    setTimeout(() => {
+        passwordWrap.classList.remove("login-error-shake");
+    }, 500);
+}
+</script>
+</body>
+</html>
