@@ -119,6 +119,14 @@ app.config.update(
 )
 
 
+# Templates are re-read from disk whenever they change, so a running
+# server can never keep serving a stale (cached) version of a page.
+
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+
+app.jinja_env.auto_reload = True
+
+
 # =========================================================
 # LOGGING
 # =========================================================
@@ -1745,14 +1753,53 @@ def download_resume_to_tempfile(stored_filename):
     return Path(handle.name)
 
 
+def storage_object_missing(status, payload):
+
+    """True when Supabase answered "this object does not exist".
+
+    Deleting an object that is already gone does not come back as 404:
+    Supabase replies with HTTP 400 and a `not_found` body, for example
+    `{"statusCode":"404","error":"not_found","message":"Object not
+    found","code":"NoSuchKey"}`. The body therefore has to be checked,
+    not just the status line."""
+
+    if status == 404:
+
+        return True
+
+    if status != 400:
+
+        return False
+
+    detail = (
+        payload
+        or
+        b""
+    )
+
+    return (
+        b"not_found" in detail
+        or
+        b"NoSuchKey" in detail
+        or
+        b'"statusCode":"404"' in detail
+    )
+
+
 def delete_resume_from_storage(stored_filename):
 
-    """Best-effort removal of one object — never raises, and treats a
-    missing object as already deleted (like `missing_ok=True`)."""
+    """Remove one resume object from the private bucket. Never raises.
+
+    Returns True when the object is no longer in the bucket — a real
+    delete (HTTP 200/204), a 404 from a proxy, or Supabase's
+    "already missing" answer (HTTP 400 with a `not_found` body, see
+    `storage_object_missing`), so repeating a delete stays idempotent.
+    Returns False only when the object could not be removed: no
+    connection, a rejected request or bad credentials."""
 
     try:
 
-        status, _ = storage_request(
+        status, payload = storage_request(
             "DELETE",
             stored_filename
         )
@@ -1765,7 +1812,11 @@ def delete_resume_from_storage(stored_filename):
 
         return False
 
-    if status in (200, 204, 404):
+    if (
+        status in (200, 204)
+        or
+        storage_object_missing(status, payload)
+    ):
 
         return True
 
@@ -1817,6 +1868,65 @@ def local_resume_path(stored_filename):
         None,
         False
     )
+
+
+def delete_local_resume_file(stored_filename):
+
+    """Delete the `uploads/` copy of one stored resume.
+
+    Only the basename of `stored_filename` is used, so a stored value
+    containing path separators can never reach a file outside
+    `UPLOAD_FOLDER`, and the tracked `.gitkeep` placeholder is never
+    touched. Returns True when the file is gone (including when it was
+    never there) and False when an existing file could not be
+    removed."""
+
+    name = Path(
+        stored_filename
+        or
+        ""
+    ).name
+
+    if (
+        not name
+        or
+        name == ".gitkeep"
+    ):
+
+        return True
+
+    file_path = (
+        UPLOAD_FOLDER
+        /
+        name
+    )
+
+    # `Path(...).name` already strips every directory part; this is a
+    # second, cheap guarantee that nothing outside uploads/ is touched.
+
+    if file_path.parent != UPLOAD_FOLDER:
+
+        logger.warning(
+            "Refusing to delete a resume file outside the uploads folder"
+        )
+
+        return False
+
+    try:
+
+        file_path.unlink(
+            missing_ok=True
+        )
+
+    except OSError:
+
+        logger.exception(
+            "Uploaded resume file could not be removed from disk"
+        )
+
+        return False
+
+    return True
 
 
 # =========================================================
@@ -5302,41 +5412,25 @@ def clear_history():
 
         resumes = cursor.fetchall()
 
-        # -------------------------------------------------
-        # Delete analysis history
-        # -------------------------------------------------
-
-        cursor.execute(
-            """
-            DELETE FROM resume_analysis
-            WHERE user_id = %s
-            """,
-            (
-                user_id,
-            )
-        )
-
-        # -------------------------------------------------
-        # Delete resume records
-        # -------------------------------------------------
-
-        cursor.execute(
-            """
-            DELETE FROM resumes
-            WHERE user_id = %s
-            """,
-            (
-                user_id,
-            )
-        )
+        # Close the read transaction before talking to Storage, so no
+        # database transaction stays open during network calls.
 
         db.commit()
 
         # -------------------------------------------------
-        # Delete uploaded resume files
+        # Delete the stored copy of every resume first
+        #
+        # A row is only removed once its file is gone, so a failed
+        # Storage delete keeps that row (and its history) instead of
+        # leaving an object behind with no record of it.
         # -------------------------------------------------
 
+        cleared_ids = []
+        failed_files = []
+
         for resume in resumes:
+
+            resume_id = resume["id"]
 
             stored_filename = (
                 resume.get(
@@ -5346,6 +5440,10 @@ def clear_history():
 
             if not stored_filename:
 
+                cleared_ids.append(
+                    resume_id
+                )
+
                 continue
 
             # Resumes uploaded after the storage migration live in the
@@ -5354,20 +5452,120 @@ def clear_history():
                 stored_filename
             ):
 
-                delete_resume_from_storage(
+                if not delete_resume_from_storage(
+                    stored_filename
+                ):
+
+                    logger.error(
+                        "Clear history: Supabase Storage delete failed "
+                        "for resume id %s",
+                        resume_id
+                    )
+
+                    failed_files.append(
+                        stored_filename
+                    )
+
+                    continue
+
+                # Remove the pre-migration local copy of the same file
+                # when it is still on disk. Best effort: the copy in
+                # the bucket is already gone at this point.
+                delete_local_resume_file(
+                    stored_filename
+                )
+
+                cleared_ids.append(
+                    resume_id
+                )
+
+                continue
+
+            if not delete_local_resume_file(
+                stored_filename
+            ):
+
+                logger.error(
+                    "Clear history: uploaded file could not be removed "
+                    "for resume id %s",
+                    resume_id
+                )
+
+                failed_files.append(
                     stored_filename
                 )
 
                 continue
 
-            file_path = (
-                UPLOAD_FOLDER
-                /
-                stored_filename
+            cleared_ids.append(
+                resume_id
             )
 
-            file_path.unlink(
-                missing_ok=True
+        # -------------------------------------------------
+        # Delete the records of the resumes whose file is gone
+        # -------------------------------------------------
+
+        if cleared_ids:
+
+            cursor.execute(
+                """
+                DELETE FROM resume_analysis
+                WHERE user_id = %s
+                AND resume_id = ANY(%s)
+                """,
+                (
+                    user_id,
+                    cleared_ids
+                )
+            )
+
+            cursor.execute(
+                """
+                DELETE FROM resumes
+                WHERE user_id = %s
+                AND id = ANY(%s)
+                """,
+                (
+                    user_id,
+                    cleared_ids
+                )
+            )
+
+            db.commit()
+
+        # -------------------------------------------------
+        # Report the outcome
+        # -------------------------------------------------
+
+        if failed_files:
+
+            logger.error(
+                "Clear history: %s resume file(s) could not be deleted "
+                "for user %s",
+                len(failed_files),
+                user_id
+            )
+
+            if len(failed_files) == len(resumes):
+
+                flash(
+                    "Unable to clear history: your resume files could "
+                    "not be removed from secure storage. Please try "
+                    "again.",
+                    "error"
+                )
+
+            else:
+
+                flash(
+                    "Some resumes could not be removed from secure "
+                    "storage, so they were kept in your history. "
+                    "Please try again.",
+                    "error"
+                )
+
+            return redirect(
+                url_for("history")
             )
 
         flash(
