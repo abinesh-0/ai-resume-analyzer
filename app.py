@@ -1283,10 +1283,15 @@ def derived_supabase_dsn():
 
         return ""
 
+    # The direct host db.<ref>.supabase.co is IPv6-only and unreachable
+    # from many deployment networks (Render fails with "Network is
+    # unreachable"), so default to the Session Pooler, which is reachable
+    # over IPv4 on port 5432. Override with SUPABASE_DB_HOST if a
+    # different target is needed.
     host = (
         env_value("SUPABASE_DB_HOST")
         or
-        f"db.{ref}.supabase.co"
+        "aws-0-ap-northeast-1.pooler.supabase.com"
     )
 
     port = (
