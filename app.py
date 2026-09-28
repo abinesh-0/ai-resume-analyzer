@@ -3,6 +3,9 @@ import logging
 import os
 import re
 import secrets
+import tempfile
+import urllib.error
+import urllib.request
 import uuid
 from datetime import datetime, timedelta, timezone
 from functools import wraps
@@ -1490,6 +1493,329 @@ def as_naive_utc(value):
         value
         .astimezone(timezone.utc)
         .replace(tzinfo=None)
+    )
+
+
+# =========================================================
+# STORAGE (SUPABASE STORAGE)
+# =========================================================
+#
+# Uploaded resumes live in a PRIVATE Supabase Storage bucket. Only the
+# server talks to it, with the service-role key taken from the
+# environment; the key is never sent to the browser, a template, a URL
+# or a log. The Storage REST API is called with the standard library,
+# so this needs no extra dependency.
+
+RESUME_BUCKET = (
+    env_value("SUPABASE_STORAGE_BUCKET")
+    or "resumes"
+)
+
+STORAGE_TIMEOUT_SECONDS = 30
+
+RESUME_CONTENT_TYPES = {
+    ".pdf": "application/pdf",
+
+    ".docx": (
+        "application/vnd.openxmlformats-officedocument"
+        ".wordprocessingml.document"
+    ),
+}
+
+
+def storage_configured():
+
+    """True when the bucket can be reached with server-side credentials."""
+
+    return bool(
+        env_value("SUPABASE_URL")
+        and
+        env_value("SUPABASE_SERVICE_ROLE_KEY")
+    )
+
+
+def resume_content_type(filename):
+
+    return RESUME_CONTENT_TYPES.get(
+        Path(filename).suffix.lower(),
+        "application/octet-stream"
+    )
+
+
+def storage_object_path(stored_filename):
+
+    return (
+        (stored_filename or "")
+        .replace("\\", "/")
+        .lstrip("/")
+    )
+
+
+def is_storage_reference(stored_filename):
+
+    """Rows written after the storage migration hold
+    `<user_id>/<filename>`; rows written before it hold a bare local
+    filename, which is still supported."""
+
+    return "/" in (stored_filename or "")
+
+
+def storage_request(method, object_path="", body=None, content_type=None,
+                    authenticated=False):
+
+    """Call the Supabase Storage REST API — returns (status, payload).
+
+    `status` is None when the request never reached Supabase."""
+
+    if not storage_configured():
+
+        raise RuntimeError(
+            "Supabase Storage is not configured. Set "
+            "SUPABASE_SERVICE_ROLE_KEY (SUPABASE_URL is already read "
+            "from the environment) — the key stays server-side."
+        )
+
+    url = (
+        env_value("SUPABASE_URL").rstrip("/")
+        + "/storage/v1/object/"
+        + (
+            "authenticated/"
+            if authenticated
+            else ""
+        )
+        + RESUME_BUCKET
+    )
+
+    if object_path:
+
+        url += "/" + storage_object_path(object_path)
+
+    key = env_value("SUPABASE_SERVICE_ROLE_KEY")
+
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "apikey": key,
+    }
+
+    if content_type:
+
+        headers["Content-Type"] = content_type
+
+    storage_call = urllib.request.Request(
+        url,
+        data=body,
+        headers=headers,
+        method=method,
+    )
+
+    try:
+
+        with urllib.request.urlopen(
+            storage_call,
+            timeout=STORAGE_TIMEOUT_SECONDS
+        ) as response:
+
+            return (
+                response.status,
+                response.read()
+            )
+
+    except urllib.error.HTTPError as exc:
+
+        # Supabase answers with a JSON error body; the key is not echoed.
+        return (
+            exc.code,
+            exc.read()
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Supabase Storage request failed (%s)",
+            method
+        )
+
+        return (
+            None,
+            b""
+        )
+
+
+def upload_resume_to_storage(user_id, stored_filename, file_path):
+
+    """Upload one resume to the private bucket.
+
+    Object path: `<user_id>/<stored_filename>` — unique per user, with
+    no user-supplied path segments, so traversal is impossible.
+    Returns the object path, or None when the upload did not succeed."""
+
+    object_path = (
+        f"{user_id}/{stored_filename}"
+    )
+
+    try:
+
+        body = Path(file_path).read_bytes()
+
+        status, _ = storage_request(
+            "POST",
+            object_path,
+            body,
+            resume_content_type(stored_filename)
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Supabase Storage upload could not be performed"
+        )
+
+        return None
+
+    if status not in (200, 201):
+
+        logger.error(
+            "Supabase Storage upload rejected (HTTP %s) for object %s",
+            status,
+            object_path
+        )
+
+        return None
+
+    return object_path
+
+
+def download_resume_to_tempfile(stored_filename):
+
+    """Fetch a stored resume into a temporary local file.
+
+    Private objects are requested through the authenticated endpoint
+    first, with the plain object endpoint as a fallback. Returns the
+    temporary path, or None when the object could not be retrieved."""
+
+    payload = None
+    last_status = None
+
+    for authenticated in (True, False):
+
+        try:
+
+            status, body = storage_request(
+                "GET",
+                stored_filename,
+                authenticated=authenticated
+            )
+
+        except Exception:
+
+            logger.exception(
+                "Supabase Storage download could not be performed"
+            )
+
+            return None
+
+        if status == 200 and body:
+
+            payload = body
+
+            break
+
+        last_status = status
+
+    if not payload:
+
+        logger.error(
+            "Supabase Storage download failed (HTTP %s) for object %s",
+            last_status,
+            stored_filename
+        )
+
+        return None
+
+    handle = tempfile.NamedTemporaryFile(
+        suffix=Path(stored_filename).suffix.lower(),
+        prefix="resume-",
+        delete=False,
+    )
+
+    with handle:
+
+        handle.write(payload)
+
+    return Path(handle.name)
+
+
+def delete_resume_from_storage(stored_filename):
+
+    """Best-effort removal of one object — never raises, and treats a
+    missing object as already deleted (like `missing_ok=True`)."""
+
+    try:
+
+        status, _ = storage_request(
+            "DELETE",
+            stored_filename
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Supabase Storage delete could not be performed"
+        )
+
+        return False
+
+    if status in (200, 204, 404):
+
+        return True
+
+    logger.warning(
+        "Supabase Storage delete rejected (HTTP %s) for object %s",
+        status,
+        stored_filename
+    )
+
+    return False
+
+
+def local_resume_path(stored_filename):
+
+    """Return `(path, temporary)` for a stored resume, or `(None, False)`.
+
+    Storage-backed resumes are downloaded to a temporary file that the
+    caller must remove; pre-migration rows are still read from the local
+    uploads folder when the file is present."""
+
+    if not stored_filename:
+
+        return (
+            None,
+            False
+        )
+
+    if is_storage_reference(stored_filename):
+
+        return (
+            download_resume_to_tempfile(stored_filename),
+            True
+        )
+
+    path = (
+        UPLOAD_FOLDER
+        /
+        stored_filename
+    )
+
+    if path.exists():
+
+        return (
+            path,
+            False
+        )
+
+    return (
+        None,
+        False
     )
 
 
@@ -4307,6 +4633,8 @@ def analyze():
         stored
     )
 
+    stored_reference = None
+
     try:
 
         # -------------------------------------------------
@@ -4530,13 +4858,40 @@ def analyze():
         }
 
         # -------------------------------------------------
+        # UPLOAD TO SUPABASE STORAGE
+        # -------------------------------------------------
+
+        stored_reference = (
+            upload_resume_to_storage(
+                session["user_id"],
+                stored,
+                path
+            )
+        )
+
+        if not stored_reference:
+
+            path.unlink(
+                missing_ok=True
+            )
+
+            flash(
+                "Unable to save your resume right now. Please try again.",
+                "error"
+            )
+
+            return redirect(
+                url_for("home")
+            )
+
+        # -------------------------------------------------
         # SAVE ANALYSIS
         # -------------------------------------------------
 
         resume_id, analysis_id = (
             save_resume_and_analysis(
                 original,
-                stored,
+                stored_reference,
                 role,
                 analysis["resume_score"],
                 analysis["match_percentage"],
@@ -4544,6 +4899,14 @@ def analyze():
                 analysis["missing_skills"],
                 breakdown
             )
+        )
+
+        # -------------------------------------------------
+        # DROP THE LOCAL TEMPORARY COPY
+        # -------------------------------------------------
+
+        path.unlink(
+            missing_ok=True
         )
 
         # -------------------------------------------------
@@ -4566,6 +4929,12 @@ def analyze():
         logger.exception(
             "Analysis failed"
         )
+
+        if stored_reference:
+
+            delete_resume_from_storage(
+                stored_reference
+            )
 
         path.unlink(
             missing_ok=True
@@ -4664,13 +5033,11 @@ def analyze_existing():
                 url_for("home")
             )
 
-        path = (
-            UPLOAD_FOLDER
-            /
+        path, temporary = local_resume_path(
             resume["stored_filename"]
         )
 
-        if not path.exists():
+        if not path:
 
             flash(
                 "Stored resume file is unavailable. Please upload it again.",
@@ -4681,9 +5048,19 @@ def analyze_existing():
                 url_for("home")
             )
 
-        text = extract_resume(
-            path
-        )
+        try:
+
+            text = extract_resume(
+                path
+            )
+
+        finally:
+
+            if temporary:
+
+                path.unlink(
+                    missing_ok=True
+                )
 
         analysis = analyze_text(
             text,
@@ -4967,17 +5344,31 @@ def clear_history():
                 )
             )
 
-            if stored_filename:
+            if not stored_filename:
 
-                file_path = (
-                    UPLOAD_FOLDER
-                    /
+                continue
+
+            # Resumes uploaded after the storage migration live in the
+            # private Supabase bucket; older rows are still on disk.
+            if is_storage_reference(
+                stored_filename
+            ):
+
+                delete_resume_from_storage(
                     stored_filename
                 )
 
-                file_path.unlink(
-                    missing_ok=True
-                )
+                continue
+
+            file_path = (
+                UPLOAD_FOLDER
+                /
+                stored_filename
+            )
+
+            file_path.unlink(
+                missing_ok=True
+            )
 
         flash(
             "All your history has been cleared successfully.",
@@ -5072,13 +5463,11 @@ def history_detail(
                 url_for("history")
             )
 
-        path = (
-            UPLOAD_FOLDER
-            /
+        path, temporary = local_resume_path(
             row["stored_filename"]
         )
 
-        if not path.exists():
+        if not path:
 
             flash(
                 "The stored resume is unavailable. Please upload it again.",
@@ -5089,9 +5478,19 @@ def history_detail(
                 url_for("history")
             )
 
-        text = extract_resume(
-            path
-        )
+        try:
+
+            text = extract_resume(
+                path
+            )
+
+        finally:
+
+            if temporary:
+
+                path.unlink(
+                    missing_ok=True
+                )
 
         result = analyze_text(
             text,
