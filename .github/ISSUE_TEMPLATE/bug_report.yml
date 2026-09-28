@@ -1,0 +1,117 @@
+name: "🐞 Bug report"
+description: Report something that does not work as documented.
+title: "[bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the detailed report. Please check the
+        [setup section](https://github.com/abinesh-0/ai-resume-/blob/main/README.md#-getting-started)
+        and [troubleshooting notes](https://github.com/abinesh-0/ai-resume-/blob/main/README.md#-troubleshooting)
+        first — most installation problems are MySQL, Gmail App Password, or Tesseract related.
+
+        > **Never paste your real `.env`, database password, Gmail App Password,
+        > `SECRET_KEY`, or real resume text into this issue.** Redact them.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear, concise description of what happened.
+      placeholder: The OTP email is never received when registering.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The exact route and actions, in order.
+      value: |
+        1. Go to `/register`
+        2. Enter a Gmail address
+        3. Submit the form
+        4. See error / no redirect
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What you expected to happen instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console / terminal output
+      description: |
+        Paste the Flask terminal traceback. The app logs to stdout.
+        Automatically formatted as code — **redact any secret values first.**
+      render: shell
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area affected
+      multiple: true
+      options:
+        - Registration / OTP email
+        - Login / password reset
+        - Resume upload (PDF)
+        - Resume upload (DOCX)
+        - Scanned-PDF OCR
+        - Skill detection
+        - Resume score
+        - Career match / skill gap
+        - ML career prediction
+        - Roadmap / recommended projects
+        - History page
+        - Profile page
+        - Database / schema
+        - Other
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: "### Environment"
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.13.5"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "Windows 11 / Ubuntu 24.04"
+    validations:
+      required: true
+
+  - type: input
+    id: mysql
+    attributes:
+      label: MySQL version
+      placeholder: "8.4"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have redacted every secret, token, and real resume from this report.
+          required: true
+        - label: I searched existing issues and this has not already been reported.
+          required: true

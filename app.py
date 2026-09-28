@@ -4,12 +4,12 @@ import os
 import re
 import secrets
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
 
 import joblib
-import mysql.connector
+import psycopg
 import pymupdf
 import pytesseract
 from docx import Document
@@ -25,8 +25,11 @@ from flask import (
     url_for,
 )
 from flask_mail import Mail, Message
-from mysql.connector import Error
 from PIL import Image
+from psycopg import Error
+from psycopg.errors import UniqueViolation
+from psycopg.rows import dict_row
+from urllib.parse import quote, urlsplit
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -1217,41 +1220,276 @@ except Exception as exc:
 
 
 # =========================================================
-# DATABASE
+# DATABASE (SUPABASE POSTGRESQL)
 # =========================================================
+#
+# Supabase's publishable (anon) key is an API key for the hosted
+# services only - it cannot run this application's SQL and is
+# deliberately never used here. Backend access goes through the
+# project's PostgreSQL connection string, which is kept in `.env`.
+
+def env_value(name):
+
+    return (
+        os.getenv(name)
+        or ""
+    ).strip().strip("\"'").strip()
+
+
+def supabase_project_ref():
+
+    """Project reference taken from SUPABASE_URL."""
+
+    match = re.match(
+        r"^https?://([a-z0-9-]+)\.supabase\.(?:co|in|net)\b",
+        env_value("SUPABASE_URL"),
+        re.I
+    )
+
+    return (
+        match.group(1)
+        if match
+        else ""
+    )
+
+
+def derived_supabase_dsn():
+
+    """PostgreSQL URI built from the Supabase variables already present
+    in `.env`: SUPABASE_URL plus the project's database password."""
+
+    password = env_value(
+        "SUPABASE_DB_PASSWORD"
+    )
+
+    ref = supabase_project_ref()
+
+    if (
+        not password
+        or
+        not ref
+    ):
+
+        return ""
+
+    host = (
+        env_value("SUPABASE_DB_HOST")
+        or
+        f"db.{ref}.supabase.co"
+    )
+
+    port = (
+        env_value("SUPABASE_DB_PORT")
+        or
+        "5432"
+    )
+
+    user = env_value("SUPABASE_DB_USER")
+
+    if not user:
+
+        # Supabase pooler usernames carry the project reference.
+        user = (
+            f"postgres.{ref}"
+            if "pooler" in host
+            else "postgres"
+        )
+
+    database = (
+        env_value("SUPABASE_DB_NAME")
+        or
+        "postgres"
+    )
+
+    return (
+        f"postgresql://{user}:{password}@{host}:{port}/{database}"
+    )
+
+
+def normalise_supabase_dsn(dsn):
+
+    """Accepts every connection-string flavour Supabase shows in the
+    dashboard and returns one libpq can always parse."""
+
+    if dsn.lower().startswith(
+        ("http://", "https://")
+    ):
+
+        raise Error(
+            "The configured database URL is a Supabase API URL, not a "
+            "PostgreSQL connection string. Copy the connection string "
+            "from Supabase Dashboard -> Connect (Session pooler)."
+        )
+
+    if dsn.lower().startswith("postgres://"):
+
+        dsn = (
+            "postgresql://"
+            + dsn.split("://", 1)[1]
+        )
+
+    if "://" not in dsn:
+
+        raise Error(
+            "The configured database URL is not a PostgreSQL URI."
+        )
+
+    prefix, _, location = dsn.partition("://")
+
+    userinfo, at, address = location.rpartition("@")
+
+    if at:
+
+        user, colon, password = userinfo.partition(":")
+
+        # Reserved characters in a password must be percent-encoded or
+        # libpq misreads the URI; already-encoded values are left alone.
+        if (
+            colon
+            and
+            password
+            and
+            "%" not in password
+        ):
+
+            encoded = quote(
+                password,
+                safe="-._~"
+            )
+
+            if encoded != password:
+
+                dsn = (
+                    f"{prefix}://{user}:{encoded}@{address}"
+                )
+
+    # Supabase requires TLS for every PostgreSQL connection.
+    if "sslmode=" not in dsn:
+
+        dsn += (
+            "&"
+            if "?" in dsn
+            else "?"
+        ) + "sslmode=require"
+
+    return dsn
+
+
+def supabase_dsn():
+
+    """Server-side Supabase PostgreSQL connection string (never logged)."""
+
+    dsn = (
+        env_value("SUPABASE_DB_URL")
+        or
+        env_value("DATABASE_URL")
+        or
+        derived_supabase_dsn()
+    )
+
+    if not dsn:
+
+        raise Error(
+            "Supabase PostgreSQL is not configured. Add "
+            "SUPABASE_DB_PASSWORD (SUPABASE_URL is already set) or paste "
+            "the full connection string into SUPABASE_DB_URL - Supabase "
+            "Dashboard -> Connect -> Session pooler."
+        )
+
+    return normalise_supabase_dsn(dsn)
+
+
+def database_status():
+
+    """Secret-free database target summary for logs and manual checks."""
+
+    try:
+
+        parts = urlsplit(supabase_dsn())
+
+    except Error as exc:
+
+        return str(exc)
+
+    return (
+        f"{parts.hostname or '?'}:"
+        f"{parts.port or 5432}"
+        f"{parts.path or '/postgres'}"
+        f" (user: {parts.username or '?'})"
+    )
+
+
+class SupabaseConnection:
+
+    """Keeps the existing DB-API call sites working on psycopg."""
+
+    def __init__(self, connection):
+
+        self.connection = connection
+
+    def cursor(self, dictionary=False):
+
+        if dictionary:
+
+            return self.connection.cursor(
+                row_factory=dict_row
+            )
+
+        return self.connection.cursor()
+
+    def commit(self):
+
+        self.connection.commit()
+
+    def rollback(self):
+
+        self.connection.rollback()
+
+    def close(self):
+
+        self.connection.close()
+
+    def is_connected(self):
+
+        return not self.connection.closed
+
 
 def db_connection():
 
-    return mysql.connector.connect(
+    return SupabaseConnection(
 
-        host=os.getenv(
-            "DB_HOST",
-            "localhost"
-        ),
+        psycopg.connect(
 
-        port=int(
-            os.getenv(
-                "DB_PORT",
-                "3306"
-            )
-        ),
+            supabase_dsn(),
 
-        user=os.getenv(
-            "DB_USER",
-            "root"
-        ),
+            connect_timeout=10,
 
-        password=os.getenv(
-            "DB_PASSWORD",
-            ""
-        ),
+            # Supabase's transaction pooler does not support
+            # server-side prepared statements.
+            prepare_threshold=None,
+        )
+    )
 
-        database=os.getenv(
-            "DB_NAME",
-            "ai_resume_analyzer"
-        ),
 
-        connection_timeout=10,
+def as_naive_utc(value):
+
+    """PostgreSQL datetime columns may return timezone-aware values
+    while the rest of the application uses `datetime.utcnow()`."""
+
+    tzinfo = getattr(
+        value,
+        "tzinfo",
+        None
+    )
+
+    if tzinfo is None:
+
+        return value
+
+    return (
+        value
+        .astimezone(timezone.utc)
+        .replace(tzinfo=None)
     )
 
 
@@ -2034,7 +2272,7 @@ def issue_otp(
         cursor.execute(
             """
             UPDATE otp_tokens
-            SET consumed_at = UTC_TIMESTAMP()
+            SET consumed_at = NOW() AT TIME ZONE 'UTC'
             WHERE email = %s
               AND purpose = %s
               AND consumed_at IS NULL
@@ -2064,6 +2302,7 @@ def issue_otp(
                 %s,
                 0
             )
+            RETURNING id
             """,
             (
                 email,
@@ -2075,7 +2314,13 @@ def issue_otp(
             )
         )
 
-        otp_id = cursor.lastrowid
+        inserted = cursor.fetchone()
+
+        otp_id = (
+            inserted[0]
+            if inserted
+            else None
+        )
 
         db.commit()
 
@@ -2200,9 +2445,9 @@ def verify_otp(
                 "OTP not found. Please request a new OTP."
             )
 
-        if datetime.utcnow() > row[
-            "expires_at"
-        ]:
+        if datetime.utcnow() > as_naive_utc(
+            row["expires_at"]
+        ):
 
             return (
                 False,
@@ -2246,7 +2491,7 @@ def verify_otp(
         cursor.execute(
             """
             UPDATE otp_tokens
-            SET consumed_at = UTC_TIMESTAMP()
+            SET consumed_at = NOW() AT TIME ZONE 'UTC'
             WHERE id = %s
             """,
             (
@@ -2314,7 +2559,9 @@ def latest_otp_created(
         row = cursor.fetchone()
 
         return (
-            row["created_at"]
+            as_naive_utc(
+                row["created_at"]
+            )
             if row
             else None
         )
@@ -2372,6 +2619,7 @@ def save_resume_and_analysis(
                 %s,
                 %s
             )
+            RETURNING id
             """,
             (
                 session["user_id"],
@@ -2380,7 +2628,13 @@ def save_resume_and_analysis(
             )
         )
 
-        resume_id = cursor.lastrowid
+        inserted = cursor.fetchone()
+
+        resume_id = (
+            inserted[0]
+            if inserted
+            else None
+        )
 
         cursor.execute(
             """
@@ -2408,6 +2662,7 @@ def save_resume_and_analysis(
                 %s,
                 %s
             )
+            RETURNING id
             """,
             (
                 session["user_id"],
@@ -2424,7 +2679,13 @@ def save_resume_and_analysis(
             )
         )
 
-        analysis_id = cursor.lastrowid
+        inserted = cursor.fetchone()
+
+        analysis_id = (
+            inserted[0]
+            if inserted
+            else None
+        )
 
         db.commit()
 
@@ -2517,6 +2778,7 @@ def save_existing_analysis(
                 %s,
                 %s
             )
+            RETURNING id
             """,
             (
                 session["user_id"],
@@ -2531,7 +2793,13 @@ def save_existing_analysis(
             )
         )
 
-        analysis_id = cursor.lastrowid
+        inserted = cursor.fetchone()
+
+        analysis_id = (
+            inserted["id"]
+            if inserted
+            else None
+        )
 
         db.commit()
 
@@ -3430,7 +3698,7 @@ def create_password():
                 url_for("login")
             )
 
-        except mysql.connector.IntegrityError:
+        except UniqueViolation:
 
             if db:
 
@@ -5018,6 +5286,11 @@ def server_error(_):
 # =========================================================
 
 if __name__ == "__main__":
+
+    logger.info(
+        "Supabase PostgreSQL target: %s",
+        database_status()
+    )
 
     app.run(
         debug=os.getenv(

@@ -1,14 +1,14 @@
 # AI Resume Analyzer
 
-A Flask + MySQL resume analysis application with email OTP registration, password reset, target-career matching, skill-gap analysis, learning topics, career roadmaps, project recommendations and per-user history.
+A Flask + Supabase (PostgreSQL) resume analysis application with email OTP registration, password reset, target-career matching, skill-gap analysis, learning topics, career roadmaps, project recommendations and per-user history.
 
 ## Run locally
 1. Do not include `venv/` or real `.env` secrets in a ZIP/Git repository.
 2. Create a virtual environment: `python -m venv venv`
 3. Activate it: Windows `venv\Scripts\activate`
 4. Install dependencies: `pip install -r requirements.txt`
-5. Create the MySQL database/tables using `database.sql`.
-6. Copy `.env.example` to `.env` and fill in your local MySQL and SMTP values.
+5. Create the tables in your Supabase PostgreSQL database (`users`, `otp_tokens`, `resumes`, `resume_analysis`).
+6. Copy `.env.example` to `.env`, add your Supabase database password (`SUPABASE_DB_PASSWORD`) or connection string, and fill in your SMTP values.
 7. Start: `python app.py`
 
 ### Gmail

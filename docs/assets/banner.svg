@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 330" width="1200" height="330" role="img" aria-label="AI Resume Analyzer - Understand your resume. Close the skill gap.">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="0.55" stop-color="#111737"/>
+      <stop offset="1" stop-color="#0d1d33"/>
+    </linearGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8b86ff"/>
+      <stop offset="0.5" stop-color="#635bff"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="bar1" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#635bff"/>
+      <stop offset="1" stop-color="#8b86ff"/>
+    </linearGradient>
+    <linearGradient id="bar2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#7dd3fc"/>
+    </linearGradient>
+    <linearGradient id="bar3" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0f9d6e"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#635bff" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#635bff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#38bdf8" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="330" fill="url(#bg)"/>
+  <circle cx="70" cy="30" r="270" fill="url(#glow1)"/>
+  <circle cx="1080" cy="320" r="250" fill="url(#glow2)"/>
+
+  <rect x="0.5" y="0.5" width="1199" height="329" fill="none" stroke="#26305c" stroke-width="1"/>
+
+  <!-- eyebrow -->
+  <text x="70" y="86" fill="#8b86ff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="4">RESUME  ANALYSIS  ·  SKILL  GAP  ·  CAREER  ROADMAP</text>
+
+  <!-- title -->
+  <text x="68" y="152" fill="url(#title)" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="58" font-weight="800" letter-spacing="-1">AI Resume Analyzer</text>
+
+  <!-- tagline -->
+  <text x="70" y="192" fill="#c3ccdd" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="21" font-weight="500">Understand your resume. Close the skill gap. See the roadmap.</text>
+
+  <!-- stack line -->
+  <text x="70" y="230" fill="#8a94a7" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="15" font-weight="600" letter-spacing="1.2">FLASK  ·  MYSQL  ·  PYTHON-NLP  ·  TF-IDF  ·  LOGISTIC REGRESSION  ·  OCR</text>
+
+  <!-- verified catalog chips -->
+  <g font-family="Inter, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">
+    <rect x="70" y="258" width="132" height="34" rx="17" fill="#182045" stroke="#33407a"/>
+    <text x="136" y="280" fill="#c3ccdd" text-anchor="middle">40 careers</text>
+
+    <rect x="212" y="258" width="150" height="34" rx="17" fill="#182045" stroke="#33407a"/>
+    <text x="287" y="280" fill="#c3ccdd" text-anchor="middle">167 skills</text>
+
+    <rect x="372" y="258" width="152" height="34" rx="17" fill="#182045" stroke="#33407a"/>
+    <text x="448" y="280" fill="#c3ccdd" text-anchor="middle">40 roadmaps</text>
+
+    <rect x="534" y="258" width="150" height="34" rx="17" fill="#182045" stroke="#33407a"/>
+    <text x="609" y="280" fill="#c3ccdd" text-anchor="middle">PDF · DOCX · OCR</text>
+  </g>
+
+  <!-- decorative analysis motif: a stylised resume being scored (illustration, not a screenshot) -->
+  <g transform="translate(862 58)">
+    <rect x="0" y="0" width="268" height="214" rx="16" fill="#ffffff" fill-opacity="0.05" stroke="#3a4680"/>
+    <rect x="22" y="24" width="98" height="9" rx="4.5" fill="#8b86ff" fill-opacity="0.9"/>
+    <rect x="22" y="45" width="160" height="6" rx="3" fill="#ffffff" fill-opacity="0.28"/>
+    <rect x="22" y="60" width="204" height="6" rx="3" fill="#ffffff" fill-opacity="0.18"/>
+    <rect x="22" y="75" width="176" height="6" rx="3" fill="#ffffff" fill-opacity="0.18"/>
+
+    <text x="22" y="108" fill="#8a94a7" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">SKILL  COVERAGE</text>
+
+    <rect x="22" y="118" width="204" height="8" rx="4" fill="#ffffff" fill-opacity="0.10"/>
+    <rect x="22" y="118" width="152" height="8" rx="4" fill="url(#bar1)"/>
+
+    <rect x="22" y="138" width="204" height="8" rx="4" fill="#ffffff" fill-opacity="0.10"/>
+    <rect x="22" y="138" width="106" height="8" rx="4" fill="url(#bar2)"/>
+
+    <rect x="22" y="158" width="204" height="8" rx="4" fill="#ffffff" fill-opacity="0.10"/>
+    <rect x="22" y="158" width="178" height="8" rx="4" fill="url(#bar3)"/>
+
+    <text x="22" y="192" fill="#8a94a7" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="10" letter-spacing="0.6">Illustrative only - not application UI</text>
+  </g>
+
+  <g transform="translate(1104 150)">
+    <circle cx="0" cy="0" r="42" fill="none" stroke="#26305c" stroke-width="9"/>
+    <circle cx="0" cy="0" r="42" fill="none" stroke="url(#bar1)" stroke-width="9" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="92" transform="rotate(-90)"/>
+    <text x="0" y="6" fill="#e8ebf2" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="17" font-weight="800" text-anchor="middle">score</text>
+  </g>
+</svg>

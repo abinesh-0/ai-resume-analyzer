@@ -1,0 +1,292 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -----------------------------------------------------------
+  # Repository hygiene: no secrets, no uploads, clean syntax.
+  # Runs on the checkout alone, so it needs no dependencies.
+  # -----------------------------------------------------------
+  repo-hygiene:
+    name: Repository hygiene
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Confirm no secrets or uploaded resumes are tracked
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+
+          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            fail ".env is committed to the repository. Remove it from tracking."
+          fi
+
+          bad_uploads=$(git ls-files 'uploads/' | grep -v '^uploads/\.gitkeep$' || true)
+          if [ -n "$bad_uploads" ]; then
+            echo "$bad_uploads"
+            fail "Real resume files must never be committed."
+          fi
+
+          for f in secrets.json credentials.json service-account.json; do
+            if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+              fail "$f must not be committed."
+            fi
+          done
+
+          echo "OK: no .env, no uploaded resumes, no credential files."
+
+      - name: Scan for hard-coded credentials
+        run: |
+          set -uo pipefail
+          status=0
+
+          echo "::group::Hard-coded credential assignment"
+          pattern='(SECRET_KEY|DB_PASSWORD|MAIL_PASSWORD|API_KEY)[[:space:]]*=[[:space:]]*["'"'"'][^"'"'"']{12,}["'"'"']'
+          if grep -rnE "$pattern" --include='*.py' --include='*.html' --include='*.js' . ; then
+            echo "::error::Possible hard-coded credential found."
+            status=1
+          else
+            echo "OK: no literal credential assignments."
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Private key material"
+          if git grep -nE -- '-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----' -- . ; then
+            echo "::error::Private key material found in the repository."
+            status=1
+          else
+            echo "OK: no private keys."
+          fi
+          echo "::endgroup::"
+
+          exit $status
+
+      - name: Byte-compile Python sources
+        run: python -m compileall -q app.py ml_training
+
+
+      - name: Verify SQL schema defines every expected table
+        run: |
+          python - <<'PY'
+          import pathlib, sys
+
+          sql = pathlib.Path("database.sql").read_text(encoding="utf-8").lower()
+          expected = ["users", "otp_tokens", "resumes", "resume_analysis"]
+          missing = [t for t in expected if f"create table if not exists {t}" not in sql]
+
+          if missing:
+              sys.exit(f"database.sql is missing table definitions: {missing}")
+
+          print(f"OK: database.sql defines all {len(expected)} expected tables.")
+          PY
+
+      - name: Verify documentation links resolve
+        run: |
+          python - <<'PY'
+          import pathlib, re, sys
+
+          root = pathlib.Path(".")
+          link = re.compile(r"\]\(([^)]+)\)")
+          ignored = ("http://", "https://", "mailto:", "#")
+          broken, checked = [], 0
+
+          for doc in sorted(root.rglob("*.md")):
+              if "venv" in doc.parts or ".git" in doc.parts:
+                  continue
+              body = doc.read_text(encoding="utf-8", errors="ignore")
+              for target in link.findall(body):
+                  target = target.split(" ")[0].split("#")[0].strip()
+                  if not target or target.startswith(ignored):
+                      continue
+                  checked += 1
+                  if not (doc.parent / target).resolve().exists():
+                      broken.append(f"{doc} -> {target}")
+
+          if broken:
+              print("Broken relative documentation links:")
+              print("\n".join(broken))
+              sys.exit(1)
+
+          print(f"OK: {checked} relative documentation links verified.")
+          PY
+
+  # -----------------------------------------------------------
+  # The application must import and analyse text with no
+  # database, no .env and no SMTP server present.
+  # -----------------------------------------------------------
+  app-smoke:
+    name: App smoke test (Python ${{ matrix.python-version }})
+    needs: repo-hygiene
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Import app and verify the route table
+        run: |
+          python - <<'PY'
+          import warnings
+          warnings.filterwarnings("ignore")
+
+          import app
+
+          expected = {
+              "/", "/login", "/register", "/register/verify-otp", "/resend-otp",
+              "/create-password", "/forgot-password", "/verify-otp/<purpose>",
+              "/verify-reset-otp", "/reset-password", "/analyze",
+              "/analyze-existing", "/history", "/clear-history",
+              "/history/<int:analysis_id>", "/profile", "/logout",
+          }
+          actual = {r.rule for r in app.app.url_map.iter_rules()}
+          actual.discard("/static/<path:filename>")
+
+          missing = sorted(expected - actual)
+          if missing:
+              raise SystemExit(f"Missing routes: {missing}")
+
+          print(f"OK: all {len(expected)} expected routes registered.")
+          PY
+
+      - name: Run offline analysis on a synthetic resume
+        run: |
+          python - <<'PY'
+          import warnings
+          warnings.filterwarnings("ignore")
+
+          import app
+
+          text = (
+              "John Sample - Resume\n"
+              "Skills: Python, Flask, MySQL, JavaScript, HTML, CSS, Git\n"
+              "Education: B.Tech Computer Science\n"
+              "Projects: Flask inventory system, resume analyzer\n"
+              "Experience: Software Intern at Sample Software\n"
+              "Certifications: AWS Cloud Practitioner\n"
+          )
+
+          skills = app.detect_skills(text)
+          assert skills, "skill detection returned nothing"
+
+          score = app.resume_score(
+              skills,
+              app.extract_education(text),
+              app.extract_projects(text),
+              app.extract_experience(text),
+              app.extract_certifications(text),
+          )
+          assert 0 <= score <= 100, score
+
+          match, matched, missing = app.career_match("Software Engineer", skills)
+          assert 0 <= match <= 100, match
+
+          result = app.analyze_text(text, "Software Engineer")
+          required = {
+              "skills", "education", "projects", "experience", "certifications",
+              "resume_score", "match_percentage", "matched_skills",
+              "missing_skills", "priority", "predicted_career", "ml_confidence",
+              "topics", "roadmap", "projects_recommended",
+          }
+          absent = required - set(result)
+          assert not absent, f"analysis result missing keys: {absent}"
+
+          # The auxiliary model is optional; the rule-based engine must work
+          # whether or not the .pkl artefacts load.
+          predicted, confidence = app.ml_prediction(text)
+          assert confidence == 0.0 or 0.0 <= confidence <= 100.0
+
+          assert app.ALLOWED_EXTENSIONS == {".pdf", ".docx"}
+
+          print(
+              f"OK: {len(skills)} skills detected, score={score}, "
+              f"match={match}%, predicted={predicted!r}, conf={confidence}"
+          )
+          PY
+
+      - name: Verify career catalogues are populated and consistent
+        run: |
+          python - <<'PY'
+          import warnings
+          warnings.filterwarnings("ignore")
+
+          import app
+
+          for name, data in {
+              "CAREERS": app.CAREERS,
+              "CAREER_ROADMAPS": app.CAREER_ROADMAPS,
+              "LEARNING_TOPICS": app.LEARNING_TOPICS,
+              "PROJECTS": app.PROJECTS,
+          }.items():
+              assert data, f"{name} is empty"
+              assert all(values for values in data.values()), f"{name} has empty entries"
+
+          dangling = {
+              career: [s for s in skills if s not in app.SKILLS]
+              for career, skills in app.CAREERS.items()
+          }
+          dangling = {k: v for k, v in dangling.items() if v}
+          if dangling:
+              raise SystemExit(f"Careers reference skills missing from SKILLS: {dangling}")
+
+          print(
+              f"OK: {len(app.CAREERS)} careers, "
+              f"{len(app.CAREER_ROADMAPS)} roadmaps, "
+              f"{len(app.LEARNING_TOPICS)} learning-topic groups, "
+              f"{len(app.PROJECTS)} project sets, "
+              f"{len(app.SKILLS)} detectable skills."
+          )
+          PY
+
+      - name: Verify templates referenced by routes exist
+        run: |
+          python - <<'PY'
+          import pathlib, re, warnings
+          warnings.filterwarnings("ignore")
+
+          import app
+
+          source = pathlib.Path("app.py").read_text(encoding="utf-8")
+          templates = set(re.findall(r"render_template\(\s*[\"']([^\"']+)[\"']", source))
+          missing = sorted(t for t in templates if not (pathlib.Path("templates") / t).exists())
+
+          if missing:
+              raise SystemExit(f"Routes render templates that do not exist: {missing}")
+
+          print(f"OK: all {len(templates)} rendered templates exist on disk.")
+          PY
+

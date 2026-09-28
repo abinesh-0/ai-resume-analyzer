@@ -1,0 +1,91 @@
+name: "✨ Feature request"
+description: Suggest an improvement or a new capability.
+title: "[feat]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas are welcome. This project is deliberately a **single-file Flask
+        app with a light dependency set**, so proposals that avoid new
+        frameworks, build steps, or cloud services are most likely to land.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem this solves
+      description: What is missing or painful today? Explain the need before the solution.
+      placeholder: >
+        The skill-gap list treats every missing skill as equally important,
+        so a user with 12 gaps cannot tell what to learn first.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should happen instead? Be concrete about the user-visible result.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Change type
+      multiple: true
+      options:
+        - New career in the catalogue
+        - New / improved learning roadmap
+        - New recommended projects
+        - Skill alias or detection improvement
+        - Resume scoring heuristic change
+        - ML model or training-data improvement
+        - UI / template improvement
+        - Documentation
+        - CI / tooling
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other ways to solve it, and why you prefer your approach.
+    validations:
+      required: false
+
+  - type: textarea
+    id: data
+    attributes:
+      label: Data or catalogues affected
+      description: >
+        Does this touch CAREERS, CAREER_ROADMAPS, LEARNING_TOPICS, PROJECTS,
+        SKILL_ALIASES, the ML dataset, or database.sql?
+    validations:
+      required: false
+
+  - type: textarea
+    id: honesty
+    attributes:
+      label: Honest trade-offs
+      description: >
+        If this involves the ML model, state the training-data size and how
+        you would evaluate it. Accuracy claims without a held-out test set
+        are not accepted.
+      placeholder: >
+        The bundled dataset covers 9 rows across 3 careers, so predictions are
+        indicative only. I would expand it and report held-out accuracy.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues and this has not already been requested.
+          required: true
+        - label: I am willing to open a pull request for this.
+          required: false

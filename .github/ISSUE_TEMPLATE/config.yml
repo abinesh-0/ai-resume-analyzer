@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Setup & installation help
+    url: https://github.com/abinesh-0/ai-resume-/blob/main/README.md#-getting-started
+    about: Start here — MySQL, Gmail App Password, and Tesseract setup are documented in the README.
+  - name: Report a security issue (not a public issue)
+    url: https://github.com/abinesh-0/ai-resume-/security/advisories/new
+    about: Please use a private security advisory. See SECURITY.md — never disclose vulnerabilities publicly.
