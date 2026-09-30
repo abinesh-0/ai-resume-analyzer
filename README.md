@@ -15,7 +15,7 @@ A Flask + Supabase (PostgreSQL) resume analysis application with email OTP regis
 Use a Gmail App Password for `MAIL_PASSWORD`; never put the real value in GitHub or the project ZIP.
 
 ### Tesseract
-Scanned-PDF OCR requires Tesseract OCR installed on the machine and available on PATH (or configured through your OS).
+Scanned-PDF OCR requires Tesseract OCR installed on the machine and available on PATH (or configured through your OS). Text-based PDFs and DOCX resumes never need it. When Tesseract is missing — for example on a native Python host such as Render, which does not ship it — a scanned/image-only PDF is handled gracefully: the page explains that the PDF looks scanned and asks for a text-based PDF or DOCX instead of failing with a generic "Unable to analyze this resume right now." error.
 
 ## Production notes
 Set `FLASK_DEBUG=false`, use a strong `SECRET_KEY`, keep `.env` private, use HTTPS, and configure the production WSGI server/database.

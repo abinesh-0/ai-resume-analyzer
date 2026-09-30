@@ -290,3 +290,6 @@ jobs:
           print(f"OK: all {len(templates)} rendered templates exist on disk.")
           PY
 
+      - name: Run resume upload regression tests
+        run: python -m unittest discover -s tests -v
+

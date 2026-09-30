@@ -10,12 +10,14 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
+from zipfile import BadZipFile
 
 import joblib
 import psycopg
 import pymupdf
 import pytesseract
 from docx import Document
+from docx.opc.exceptions import PackageNotFoundError
 from dotenv import load_dotenv
 from flask import (
     Flask,
@@ -2077,15 +2079,121 @@ def allowed_file(filename):
     )
 
 
+class ResumeExtractionError(Exception):
+
+    """The uploaded file could not be read as a PDF or DOCX document."""
+
+
+class OCRUnavailableError(ResumeExtractionError):
+
+    """A scanned PDF needs OCR, but Tesseract is not available here.
+
+    Tesseract is a system binary, not a Python package, so a server
+    (for example a Render deployment) may not have it while the
+    developer's own machine does."""
+
+
+def accepted_resume_suffix(filename):
+
+    """Return the accepted extension of the RAW upload name, or "".
+
+    `secure_filename()` strips a fully non-Latin stem together with the
+    extension ("<regional-name>.pdf" becomes "pdf"), so the extension
+    the browser sent — not the sanitised copy — decides acceptance."""
+
+    suffix = (
+        Path(
+            (filename or "").strip()
+        )
+        .suffix
+        .lower()
+    )
+
+    return (
+        suffix
+        if suffix in ALLOWED_EXTENSIONS
+        else ""
+    )
+
+
+def uploaded_size(path):
+
+    """Byte size of a temporary upload for logging; -1 when unknown."""
+
+    try:
+
+        return Path(
+            path
+        ).stat().st_size
+
+    except OSError:
+
+        return -1
+
+
+def remove_uploaded_file(path):
+
+    """Best-effort removal of a temporary upload that never raises.
+
+    On Windows a file that PyMuPDF/python-docx failed to open can stay
+    locked for a moment, and a failing cleanup must not turn an
+    already-handled upload error into an HTTP 500 page."""
+
+    try:
+
+        Path(
+            path
+        ).unlink(
+            missing_ok=True
+        )
+
+    except OSError:
+
+        logger.warning(
+            "Temporary resume file could not be removed: %s",
+            Path(path).name
+        )
+
+
 # =========================================================
 # PDF EXTRACTION
 # =========================================================
+
+def open_pdf(path):
+
+    """Open a PDF from memory, turning PyMuPDF's read errors into a clear
+    app error.
+
+    Reading the bytes first (instead of letting PyMuPDF open the path)
+    keeps PyMuPDF's failed-open paths from holding a file handle, which
+    used to lock the temporary upload on Windows and turn a handled
+    error into an HTTP 500 during cleanup. Covers 0-byte uploads and
+    files whose bytes are not a PDF at all — two shapes mobile
+    "Downloads/Files" pickers can hand over."""
+
+    try:
+
+        return pymupdf.open(
+            stream=Path(path).read_bytes(),
+            filetype="pdf"
+        )
+
+    except (
+        pymupdf.EmptyFileError,
+        pymupdf.FileDataError,
+        RuntimeError
+    ) as exc:
+
+        raise ResumeExtractionError(
+            "The document could not be read as a PDF."
+        ) from exc
+
 
 def extract_pdf(path):
 
     parts = []
 
-    with pymupdf.open(path) as pdf:
+    with open_pdf(path) as pdf:
 
         for page in pdf:
 
@@ -2107,10 +2215,14 @@ def extract_pdf(path):
 
         return text
 
-    # OCR fallback
+    # OCR fallback for scanned/image-only PDFs. Tesseract is a system
+    # binary, so it can be missing on a server (for example a Render
+    # deployment); that must surface as a clear message, not a crash.
     ocr_parts = []
 
-    with pymupdf.open(path) as pdf:
+    ocr_unavailable = None
+
+    with open_pdf(path) as pdf:
 
         for page in pdf:
 
@@ -2137,9 +2249,31 @@ def extract_pdf(path):
                     )
                 )
 
+            except pytesseract.TesseractNotFoundError as exc:
+
+                # No Tesseract binary at all, so no page can be OCR'd.
+                ocr_unavailable = exc
+
+                break
+
+            except pytesseract.TesseractError:
+
+                # One unreadable page must not lose the other pages.
+                logger.warning(
+                    "OCR failed on one page of a scanned PDF; "
+                    "continuing with the remaining pages."
+                )
+
             finally:
 
                 image.close()
+
+    if ocr_unavailable is not None:
+
+        raise OCRUnavailableError(
+            "Scanned PDF text extraction needs Tesseract OCR, which is "
+            "not installed on this server."
+        ) from ocr_unavailable
 
     return clean_text(
         "\n".join(
@@ -2154,9 +2288,24 @@ def extract_pdf(path):
 
 def extract_docx(path):
 
-    doc = Document(
-        path
-    )
+    try:
+
+        doc = Document(
+            path
+        )
+
+    except (
+        BadZipFile,
+        PackageNotFoundError,
+        KeyError,
+        ValueError,
+        OSError
+    ) as exc:
+
+        # Corrupt, empty or password-protected DOCX uploads.
+        raise ResumeExtractionError(
+            "The document could not be read as a DOCX file."
+        ) from exc
 
     parts = [
         p.text.strip()
@@ -2199,15 +2348,49 @@ def extract_resume(path):
 
     if suffix == ".pdf":
 
-        return extract_pdf(
-            path
-        )
+        try:
+
+            return extract_pdf(
+                path
+            )
+
+        except ResumeExtractionError:
+
+            raise
+
+        except Exception as exc:
+
+            logger.warning(
+                "PDF text extraction failed (%s)",
+                type(exc).__name__
+            )
+
+            raise ResumeExtractionError(
+                "The PDF could not be read."
+            ) from exc
 
     if suffix == ".docx":
 
-        return extract_docx(
-            path
-        )
+        try:
+
+            return extract_docx(
+                path
+            )
+
+        except ResumeExtractionError:
+
+            raise
+
+        except Exception as exc:
+
+            logger.warning(
+                "DOCX text extraction failed (%s)",
+                type(exc).__name__
+            )
+
+            raise ResumeExtractionError(
+                "The DOCX could not be read."
+            ) from exc
 
     return ""
 
@@ -4718,15 +4901,18 @@ def analyze():
 
     # -------------------------------------------------
     # FILE TYPE CHECK
+    #
+    # The RAW name decides acceptance. secure_filename() rewrites the
+    # stem (spaces, accents, non-Latin scripts) and can even drop the
+    # extension ("<regional-name>.pdf" becomes "pdf"), which used to
+    # reject valid mobile downloads.
     # -------------------------------------------------
 
-    original = secure_filename(
+    suffix = accepted_resume_suffix(
         file.filename
     )
 
-    if not allowed_file(
-        original
-    ):
+    if not suffix:
 
         flash(
             "Only PDF and DOCX files are supported.",
@@ -4737,9 +4923,19 @@ def analyze():
             url_for("home")
         )
 
+    original = secure_filename(
+        file.filename
+    )
+
+    if not Path(original).suffix:
+
+        # Sanitisation stripped everything but the extension (a fully
+        # non-Latin filename), so keep a readable, valid fallback.
+        original = f"resume{suffix}"
+
     stored = (
         f"{uuid.uuid4().hex}"
-        f"{Path(original).suffix.lower()}"
+        f"{suffix}"
     )
 
     path = (
@@ -4776,8 +4972,8 @@ def analyze():
             text.strip()
         ) < 30:
 
-            path.unlink(
-                missing_ok=True
+            remove_uploaded_file(
+                path
             )
 
             flash(
@@ -4911,8 +5107,8 @@ def analyze():
 
         if not valid_resume:
 
-            path.unlink(
-                missing_ok=True
+            remove_uploaded_file(
+                path
             )
 
             flash(
@@ -4986,8 +5182,8 @@ def analyze():
 
         if not stored_reference:
 
-            path.unlink(
-                missing_ok=True
+            remove_uploaded_file(
+                path
             )
 
             flash(
@@ -5020,8 +5216,8 @@ def analyze():
         # DROP THE LOCAL TEMPORARY COPY
         # -------------------------------------------------
 
-        path.unlink(
-            missing_ok=True
+        remove_uploaded_file(
+            path
         )
 
         # -------------------------------------------------
@@ -5039,10 +5235,66 @@ def analyze():
             )
         )
 
+    except OCRUnavailableError:
+
+        logger.error(
+            "Scanned PDF needs OCR but Tesseract is unavailable on this "
+            "server (user_id=%s, stored=%s, bytes=%s)",
+            session.get("user_id"),
+            stored,
+            uploaded_size(path)
+        )
+
+        remove_uploaded_file(
+            path
+        )
+
+        flash(
+            "This resume looks like a scanned/image PDF and text "
+            "extraction (OCR) is not available on the server. "
+            "Please upload a text-based PDF or DOCX version.",
+            "error"
+        )
+
+        return redirect(
+            url_for("home")
+        )
+
+    except ResumeExtractionError as exc:
+
+        logger.error(
+            "Resume file could not be read (user_id=%s, stored=%s, "
+            "bytes=%s, reason=%s)",
+            session.get("user_id"),
+            stored,
+            uploaded_size(path),
+            type(
+                exc.__cause__ or exc
+            ).__name__
+        )
+
+        remove_uploaded_file(
+            path
+        )
+
+        flash(
+            "We could not read this file. It may be corrupted, empty, "
+            "or password-protected. Please download it again and "
+            "re-upload the PDF or DOCX file.",
+            "error"
+        )
+
+        return redirect(
+            url_for("home")
+        )
+
     except Exception:
 
         logger.exception(
-            "Analysis failed"
+            "Analysis failed (user_id=%s, stored=%s, bytes=%s)",
+            session.get("user_id"),
+            stored,
+            uploaded_size(path)
         )
 
         if stored_reference:
@@ -5051,8 +5303,8 @@ def analyze():
                 stored_reference
             )
 
-        path.unlink(
-            missing_ok=True
+        remove_uploaded_file(
+            path
         )
 
         flash(
@@ -5173,8 +5425,8 @@ def analyze_existing():
 
             if temporary:
 
-                path.unlink(
-                    missing_ok=True
+                remove_uploaded_file(
+                    path
                 )
 
         analysis = analyze_text(
@@ -5241,10 +5493,52 @@ def analyze_existing():
             )
         )
 
+    except OCRUnavailableError:
+
+        logger.error(
+            "Scanned PDF needs OCR but Tesseract is unavailable "
+            "(user_id=%s, resume_id=%s)",
+            session.get("user_id"),
+            resume_id
+        )
+
+        flash(
+            "This resume looks like a scanned/image PDF and text "
+            "extraction (OCR) is not available on the server. "
+            "Please upload a text-based PDF or DOCX version.",
+            "error"
+        )
+
+        return redirect(
+            url_for("home")
+        )
+
+    except ResumeExtractionError:
+
+        logger.error(
+            "Stored resume file could not be read "
+            "(user_id=%s, resume_id=%s)",
+            session.get("user_id"),
+            resume_id
+        )
+
+        flash(
+            "We could not read the stored file. It may be corrupted, "
+            "empty, or password-protected. Please upload it again.",
+            "error"
+        )
+
+        return redirect(
+            url_for("home")
+        )
+
     except Exception:
 
         logger.exception(
-            "Existing resume analysis failed"
+            "Existing resume analysis failed "
+            "(user_id=%s, resume_id=%s)",
+            session.get("user_id"),
+            resume_id
         )
 
         flash(
@@ -5691,8 +5985,8 @@ def history_detail(
 
             if temporary:
 
-                path.unlink(
-                    missing_ok=True
+                remove_uploaded_file(
+                    path
                 )
 
         result = analyze_text(
@@ -5712,10 +6006,51 @@ def history_detail(
             from_history=True
         )
 
+    except OCRUnavailableError:
+
+        logger.error(
+            "Scanned PDF needs OCR but Tesseract is unavailable "
+            "(user_id=%s, analysis_id=%s)",
+            session.get("user_id"),
+            analysis_id
+        )
+
+        flash(
+            "This resume looks like a scanned/image PDF and text "
+            "extraction (OCR) is not available on the server. "
+            "Please upload a text-based PDF or DOCX version.",
+            "error"
+        )
+
+        return redirect(
+            url_for("history")
+        )
+
+    except ResumeExtractionError:
+
+        logger.error(
+            "Stored resume file could not be read "
+            "(user_id=%s, analysis_id=%s)",
+            session.get("user_id"),
+            analysis_id
+        )
+
+        flash(
+            "We could not read the stored file. It may be corrupted, "
+            "empty, or password-protected. Please upload it again.",
+            "error"
+        )
+
+        return redirect(
+            url_for("history")
+        )
+
     except Exception:
 
         logger.exception(
-            "History detail error"
+            "History detail error (user_id=%s, analysis_id=%s)",
+            session.get("user_id"),
+            analysis_id
         )
 
         flash(

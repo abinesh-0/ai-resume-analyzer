@@ -1395,6 +1395,10 @@
 
     color: #69e5ff;
 
+    /* Long mobile filenames must wrap instead of overflowing. */
+    max-width: 100%;
+    overflow-wrap: anywhere;
+
     text-shadow:
         0 0 15px rgba(105,229,255,.25);
 }
@@ -1866,7 +1870,7 @@
                     id="resumeInput"
                     type="file"
                     name="resume"
-                    accept=".pdf,.docx"
+                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     required
                 >
 

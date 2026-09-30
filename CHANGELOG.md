@@ -13,6 +13,26 @@ The format follows [Keep a Changelog][kac], and this project uses
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- Mobile resume uploads no longer fail with "Unable to analyze this resume
+  right now." on a deployment without the Tesseract OCR binary: an
+  image-only/scanned PDF now yields a specific, actionable message, and any
+  other extraction failure is reported the same way.
+- Uploads whose filename sanitises to a non-Latin stem (for example
+  `ரெஸ்யூம்.pdf`, which `secure_filename()` reduced to `pdf`) are accepted
+  again — the extension is validated against the browser's raw filename.
+- Corrupt, empty or password-protected PDF/DOCX downloads now get a
+  "could not read this file" message instead of a generic error, and a
+  locked temporary upload can no longer turn a handled error into an
+  HTTP 500.
+- Analysis failures log the stored object, size and exception type —
+  never resume contents, passwords or secrets.
+
+---
+
 ## [1.0.0] — Initial Release
 
 The first complete, working release: a Flask + MySQL resume analysis and

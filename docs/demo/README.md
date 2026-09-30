@@ -180,7 +180,8 @@ keep the filenames lowercase and descriptive (`register-otp.gif`,
 | "Too many incorrect attempts." | 5 wrong codes consumed the token — resend |
 | "Invalid file. Please upload a valid resume." | The document did not look like a resume; use a real synthetic CV with skills, education and projects |
 | "Only PDF and DOCX files are supported." / 413 page | Wrong extension, or the file exceeds 10 MB |
-| Blank analysis on a scanned PDF | Tesseract is not installed or not on `PATH` |
+| "This resume looks like a scanned/image PDF..." message | Tesseract is not installed or not on `PATH`; upload a text-based PDF/DOCX or install Tesseract |
+| "We could not read this file..." message | The download is empty, corrupt or password-protected; re-download and upload it again |
 
 ---
 
