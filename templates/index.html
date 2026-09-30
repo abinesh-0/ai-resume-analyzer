@@ -2472,7 +2472,10 @@ if (
 
             // Stage 2 — the response never arrived: hand the button back so
             // the user can retry instead of waiting forever. A late server
-            // response still renders normally if it eventually arrives.
+            // response still renders normally if it eventually arrives, so
+            // the message says waiting is still an option: retrying starts
+            // the analysis over and discards a response that may already
+            // be on its way.
             analyzeRetryTimer =
                 setTimeout(
                     function () {
@@ -2480,7 +2483,7 @@ if (
                         resetAnalyzeBtn();
 
                         showAnalyzeNotice(
-                            "This is taking longer than usual. Check your connection, then try Analyze again — or keep waiting."
+                            "This is taking longer than usual. Keep waiting if this page is still changing — or try Analyze again, which starts a new attempt."
                         );
 
                     },

@@ -27,6 +27,14 @@ The format follows [Keep a Changelog][kac], and this project uses
   non-standard Tesseract locations.
 - [docs/deployment.md](docs/deployment.md) with local Docker checks and
   safe Render switch-over steps.
+- Per-stage timing logs for `/analyze` (`analyze.start`,
+  `stage=… ms=… …`, `analyze.done status=200 total_ms=…`) and an
+  `OCR summary` line (pages, characters, milliseconds, cap/target flags),
+  so the Render logs show exactly where an analysis spends its time.
+  Only durations, counts and internal ids are logged — original
+  filenames, resume contents, e-mail addresses and secrets never are.
+  Unexpected failures additionally log the stage they failed in with a
+  full traceback.
 
 ### Fixed
 
@@ -49,6 +57,19 @@ The format follows [Keep a Changelog][kac], and this project uses
   timeout): a staged watchdog shows a "still analyzing" notice after 20 s
   and hands the button back with a retry message after 75 s, while a
   `pageshow` reset clears the stuck state after back/forward navigation.
+- OCR — the only `/analyze` stage with no natural bound — is now capped:
+  at most `MAX_OCR_PAGES` pages (default 8), stopping early once
+  `OCR_TARGET_CHARS` (default 4000) characters are recognised, with page
+  rasters limited to `OCR_MAX_PAGE_DIMENSION` pixels (default 2400). A
+  large scanned upload could otherwise keep the request open past the
+  75 s watchdog on a small production instance, at which point the browser's
+  retry aborted the still-pending request and the completed server response
+  (logged as `POST /analyze … 200`) was discarded — the user stayed stuck
+  on the Analyze page even though the analysis had succeeded. All three
+  limits are environment-overridable.
+- The 75 s retry notice now says a new attempt starts the analysis over,
+  so users can choose to keep waiting for a response that may already be
+  on its way instead of cancelling it.
 
 ---
 

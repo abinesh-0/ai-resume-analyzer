@@ -4,6 +4,7 @@ import os
 import re
 import secrets
 import tempfile
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -2237,6 +2238,87 @@ def open_pdf(path):
         ) from exc
 
 
+# =========================================================
+# OCR LIMITS
+# =========================================================
+#
+# OCR is the one /analyze stage with no natural bound: Tesseract runs
+# until it finishes, whatever the upload looks like. A multi-page or
+# huge-rasterised scan on a small production instance (Render's free
+# tier) can hold the request open for minutes — long enough for the
+# browser watchdog to fire, the user to retry, and the finished server
+# response to be discarded. Every OCR loop is therefore bounded by
+# page count, rasterised page size, and a text target that stops the
+# work as soon as there is enough text to analyse.
+
+def int_env(name, default):
+
+    try:
+
+        return max(
+            1,
+            int(
+                os.getenv(name)
+                or default
+            )
+        )
+
+    except (TypeError, ValueError):
+
+        return default
+
+
+def ms_since(moment):
+    """Whole milliseconds elapsed since a time.monotonic() mark."""
+
+    return int(
+        (time.monotonic() - moment) * 1000
+    )
+
+
+# Scanned resumes are 1-3 pages; 8 is already generous. Overridable.
+MAX_OCR_PAGES = int_env(
+    "MAX_OCR_PAGES",
+    8
+)
+
+# Stop once this much text has been recognised — a normal resume has
+# far more, so typical scans finish after the first page or two.
+OCR_TARGET_CHARS = int_env(
+    "OCR_TARGET_CHARS",
+    4000
+)
+
+# Longest rasterised page edge passed to Tesseract, in pixels. Normal
+# letter pages at the 2x zoom stay under this; poster-sized pages are
+# scaled down instead of feeding tens of megapixels to OCR.
+OCR_MAX_PAGE_DIMENSION = int_env(
+    "OCR_MAX_PAGE_DIMENSION",
+    2400
+)
+
+
+def ocr_zoom_for_page(page):
+    """Zoom for rasterising a page: at most 2x, never more than
+    OCR_MAX_PAGE_DIMENSION pixels on either edge."""
+
+    width = (
+        page.rect.width
+        or 1
+    )
+
+    height = (
+        page.rect.height
+        or 1
+    )
+
+    return min(
+        2.0,
+        OCR_MAX_PAGE_DIMENSION / width,
+        OCR_MAX_PAGE_DIMENSION / height,
+    )
+
+
 def extract_pdf(path):
 
     parts = []
@@ -2270,14 +2352,35 @@ def extract_pdf(path):
 
     ocr_unavailable = None
 
+    ocr_pages_done = 0
+
+    ocr_capped = False
+
+    ocr_target_hit = False
+
+    ocr_started = time.monotonic()
+
     with open_pdf(path) as pdf:
 
-        for page in pdf:
+        for page_number, page in enumerate(
+            pdf,
+            start=1
+        ):
 
+            # Bound 1: never OCR more pages than a resume can have.
+            if page_number > MAX_OCR_PAGES:
+
+                ocr_capped = True
+
+                break
+
+            zoom = ocr_zoom_for_page(page)
+
+            # Bound 2: never hand Tesseract an unbounded raster.
             pix = page.get_pixmap(
                 matrix=pymupdf.Matrix(
-                    2,
-                    2
+                    zoom,
+                    zoom
                 ),
                 alpha=False
             )
@@ -2315,6 +2418,35 @@ def extract_pdf(path):
             finally:
 
                 image.close()
+
+            ocr_pages_done = page_number
+
+            # Bound 3: once there is enough text to analyse, stop —
+            # later pages would not change the validation outcome.
+            if sum(
+                len(part)
+                for part in ocr_parts
+            ) >= OCR_TARGET_CHARS:
+
+                ocr_target_hit = True
+
+                break
+
+    logger.info(
+        "OCR summary: pages=%d max_pages=%d chars=%d ms=%d "
+        "page_cap_hit=%s target_hit=%s",
+        ocr_pages_done,
+        MAX_OCR_PAGES,
+        sum(
+            len(part)
+            for part in ocr_parts
+        ),
+        int(
+            (time.monotonic() - ocr_started) * 1000
+        ),
+        ocr_capped,
+        ocr_target_hit,
+    )
 
     if ocr_unavailable is not None:
 
@@ -4908,6 +5040,12 @@ def build_result_context(
 @login_required
 def analyze():
 
+    started = time.monotonic()
+
+    mark = started
+
+    stage = "validate-role"
+
     role = (
         request.form
         .get(
@@ -4917,7 +5055,19 @@ def analyze():
         .strip()
     )
 
+    logger.info(
+        "analyze.start user_id=%s role=%s",
+        session.get("user_id"),
+        role or "<missing>",
+    )
+
     if role not in CAREERS:
+
+        logger.info(
+            "analyze.reject reason=invalid-role user_id=%s total_ms=%d",
+            session.get("user_id"),
+            ms_since(started),
+        )
 
         flash(
             "Please choose a valid career.",
@@ -4938,6 +5088,12 @@ def analyze():
         not file.filename
     ):
 
+        logger.info(
+            "analyze.reject reason=missing-file user_id=%s total_ms=%d",
+            session.get("user_id"),
+            ms_since(started),
+        )
+
         flash(
             "Please upload a PDF or DOCX resume.",
             "error"
@@ -4956,11 +5112,19 @@ def analyze():
     # reject valid mobile downloads.
     # -------------------------------------------------
 
+    stage = "validate-file"
+
     suffix = accepted_resume_suffix(
         file.filename
     )
 
     if not suffix:
+
+        logger.info(
+            "analyze.reject reason=unsupported-type user_id=%s total_ms=%d",
+            session.get("user_id"),
+            ms_since(started),
+        )
 
         flash(
             "Only PDF and DOCX files are supported.",
@@ -5000,16 +5164,39 @@ def analyze():
         # SAVE FILE
         # -------------------------------------------------
 
+        stage = "save_file"
+
+        mark = time.monotonic()
+
         file.save(
             path
+        )
+
+        logger.info(
+            "analyze.stage stage=save_file ms=%d bytes=%s suffix=%s",
+            ms_since(mark),
+            uploaded_size(path),
+            suffix,
         )
 
         # -------------------------------------------------
         # EXTRACT CONTENT
         # -------------------------------------------------
 
+        stage = "extract"
+
+        mark = time.monotonic()
+
         text = extract_resume(
             path
+        )
+
+        logger.info(
+            "analyze.stage stage=extract ms=%d chars=%d",
+            ms_since(mark),
+            len(
+                text or ""
+            ),
         )
 
         # -------------------------------------------------
@@ -5019,6 +5206,16 @@ def analyze():
         if not text or len(
             text.strip()
         ) < 30:
+
+            logger.info(
+                "analyze.reject reason=too-little-text user_id=%s "
+                "chars=%d total_ms=%d",
+                session.get("user_id"),
+                len(
+                    text or ""
+                ),
+                ms_since(started),
+            )
 
             remove_uploaded_file(
                 path
@@ -5039,6 +5236,10 @@ def analyze():
         # File name is NOT used here.
         # We check the actual PDF/DOCX content.
         # -------------------------------------------------
+
+        stage = "validate_content"
+
+        mark = time.monotonic()
 
         normalized_text = " ".join(
             text.lower().split()
@@ -5153,6 +5354,17 @@ def analyze():
         # REJECT NON-RESUME DOCUMENT
         # -------------------------------------------------
 
+        logger.info(
+            "analyze.stage stage=validate_content ms=%d "
+            "sections=%d skills=%d email=%s phone=%s valid=%s",
+            ms_since(mark),
+            matched_sections,
+            skill_matches,
+            bool(has_email),
+            bool(has_phone),
+            valid_resume,
+        )
+
         if not valid_resume:
 
             remove_uploaded_file(
@@ -5172,9 +5384,24 @@ def analyze():
         # ANALYZE RESUME
         # -------------------------------------------------
 
+        stage = "predict"
+
+        mark = time.monotonic()
+
         analysis = analyze_text(
             text,
             role
+        )
+
+        logger.info(
+            "analyze.stage stage=predict ms=%d score=%s match=%s",
+            ms_since(mark),
+            analysis.get(
+                "resume_score"
+            ),
+            analysis.get(
+                "match_percentage"
+            ),
         )
 
         # -------------------------------------------------
@@ -5220,12 +5447,22 @@ def analyze():
         # UPLOAD TO SUPABASE STORAGE
         # -------------------------------------------------
 
+        stage = "storage"
+
+        mark = time.monotonic()
+
         stored_reference = (
             upload_resume_to_storage(
                 session["user_id"],
                 stored,
                 path
             )
+        )
+
+        logger.info(
+            "analyze.stage stage=storage ms=%d ok=%s",
+            ms_since(mark),
+            bool(stored_reference),
         )
 
         if not stored_reference:
@@ -5247,6 +5484,10 @@ def analyze():
         # SAVE ANALYSIS
         # -------------------------------------------------
 
+        stage = "db_save"
+
+        mark = time.monotonic()
+
         resume_id, analysis_id = (
             save_resume_and_analysis(
                 original,
@@ -5260,9 +5501,18 @@ def analyze():
             )
         )
 
+        logger.info(
+            "analyze.stage stage=db_save ms=%d resume_id=%s analysis_id=%s",
+            ms_since(mark),
+            resume_id,
+            analysis_id,
+        )
+
         # -------------------------------------------------
         # DROP THE LOCAL TEMPORARY COPY
         # -------------------------------------------------
+
+        stage = "cleanup"
 
         remove_uploaded_file(
             path
@@ -5272,7 +5522,9 @@ def analyze():
         # SHOW RESULT
         # -------------------------------------------------
 
-        return render_template(
+        stage = "render"
+
+        page = render_template(
             "result.html",
             analysis_id=analysis_id,
             resume_id=resume_id,
@@ -5283,14 +5535,24 @@ def analyze():
             )
         )
 
+        logger.info(
+            "analyze.done status=200 total_ms=%d",
+            ms_since(started),
+        )
+
+        return page
+
     except OCRUnavailableError:
 
         logger.error(
             "Scanned PDF needs OCR but Tesseract is unavailable on this "
-            "server (user_id=%s, stored=%s, bytes=%s)",
+            "server (stage=%s user_id=%s, stored=%s, bytes=%s, "
+            "total_ms=%d)",
+            stage,
             session.get("user_id"),
             stored,
-            uploaded_size(path)
+            uploaded_size(path),
+            ms_since(started),
         )
 
         remove_uploaded_file(
@@ -5311,14 +5573,16 @@ def analyze():
     except ResumeExtractionError as exc:
 
         logger.error(
-            "Resume file could not be read (user_id=%s, stored=%s, "
-            "bytes=%s, reason=%s)",
+            "Resume file could not be read (stage=%s user_id=%s, "
+            "stored=%s, bytes=%s, reason=%s, total_ms=%d)",
+            stage,
             session.get("user_id"),
             stored,
             uploaded_size(path),
             type(
                 exc.__cause__ or exc
-            ).__name__
+            ).__name__,
+            ms_since(started),
         )
 
         remove_uploaded_file(
@@ -5338,11 +5602,16 @@ def analyze():
 
     except Exception:
 
+        # Full traceback for the logs; the user only ever sees the
+        # generic flash message below.
         logger.exception(
-            "Analysis failed (user_id=%s, stored=%s, bytes=%s)",
+            "Analysis failed (stage=%s user_id=%s, stored=%s, bytes=%s, "
+            "total_ms=%d)",
+            stage,
             session.get("user_id"),
             stored,
-            uploaded_size(path)
+            uploaded_size(path),
+            ms_since(started),
         )
 
         if stored_reference:
