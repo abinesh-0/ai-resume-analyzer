@@ -19,3 +19,5 @@ Scanned-PDF OCR requires Tesseract OCR installed on the machine and available on
 
 ## Production notes
 Set `FLASK_DEBUG=false`, use a strong `SECRET_KEY`, keep `.env` private, use HTTPS, and configure the production WSGI server/database.
+
+Production is deployed from the repository's [Dockerfile](Dockerfile): the image installs Tesseract OCR with its English language data and runs Gunicorn bound to Render's `$PORT`, so scanned/image-only PDFs are analysed in production too. Step-by-step Render switch-over instructions live in [docs/deployment.md](docs/deployment.md).

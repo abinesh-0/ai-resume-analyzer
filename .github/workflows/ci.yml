@@ -293,3 +293,41 @@ jobs:
       - name: Run resume upload regression tests
         run: python -m unittest discover -s tests -v
 
+  # -----------------------------------------------------------
+  # The production image must build, carry Tesseract OCR with
+  # its English data, and serve HTTP on the assigned PORT.
+  # -----------------------------------------------------------
+  docker-image:
+    name: Docker image build & smoke test
+    needs: repo-hygiene
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the production image
+        run: docker build -t ai-resume-analyzer:ci .
+
+      - name: Verify Tesseract OCR and language data inside the image
+        run: |
+          docker run --rm ai-resume-analyzer:ci \
+            python -c "import pytesseract; langs = pytesseract.get_languages(); assert 'eng' in langs, langs; print('Tesseract', pytesseract.get_tesseract_version(), 'langs:', langs)"
+
+      - name: Run the test suite inside the image
+        run: docker run --rm ai-resume-analyzer:ci python -m unittest discover -s tests -v
+
+      - name: Smoke test Gunicorn on the assigned PORT
+        run: |
+          set -euo pipefail
+          docker run --rm -d --name ci-smoke -e PORT=8000 -p 8000:8000 ai-resume-analyzer:ci
+          code=""
+          for attempt in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/login || true)
+            if [ "$code" = "200" ]; then break; fi
+            sleep 1
+          done
+          echo "HTTP status for GET /login: $code"
+          docker logs ci-smoke
+          docker rm -f ci-smoke
+          test "$code" = "200"
+

@@ -2066,6 +2066,54 @@ def unique(items):
 
 
 # =========================================================
+# OCR (TESSERACT)
+# =========================================================
+#
+# `tesseract` is a system binary, not a Python package. The production
+# image (see Dockerfile) installs Debian's tesseract-ocr package and its
+# English language data, and pytesseract finds the binary through PATH.
+# TESSERACT_CMD exists only as an override for unusual setups, such as
+# a Windows installation that was never added to PATH.
+
+def configure_tesseract(command=None):
+
+    """Point pytesseract at the Tesseract binary; return the value used."""
+
+    selected = (
+        (command or "").strip()
+        or
+        "tesseract"
+    )
+
+    pytesseract.pytesseract.tesseract_cmd = selected
+
+    return selected
+
+
+configure_tesseract(
+    env_value("TESSERACT_CMD")
+)
+
+
+def ocr_status():
+
+    """Secret-free OCR summary for logs and manual checks."""
+
+    try:
+
+        version = pytesseract.get_tesseract_version()
+
+    except Exception as exc:
+
+        return f"unavailable ({type(exc).__name__})"
+
+    return (
+        f"Tesseract {version}"
+        f" ({pytesseract.pytesseract.tesseract_cmd})"
+    )
+
+
+# =========================================================
 # FILE HELPERS
 # =========================================================
 
@@ -6227,6 +6275,11 @@ if __name__ == "__main__":
     logger.info(
         "Supabase PostgreSQL target: %s",
         database_status()
+    )
+
+    logger.info(
+        "OCR target: %s",
+        ocr_status()
     )
 
     app.run(

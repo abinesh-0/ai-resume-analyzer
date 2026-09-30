@@ -15,6 +15,19 @@ The format follows [Keep a Changelog][kac], and this project uses
 
 ## [Unreleased]
 
+### Added
+
+- [Dockerfile](Dockerfile) production image that installs Tesseract OCR
+  with its English language data (`tesseract-ocr`, `tesseract-ocr-eng`),
+  verifies the OCR install at build time and runs the app under Gunicorn
+  bound to Render's `$PORT`.
+- [.dockerignore](.dockerignore) keeps `.env`, virtual environments and
+  local uploads out of the image.
+- Optional `TESSERACT_CMD` override plus an `ocr_status()` startup log for
+  non-standard Tesseract locations.
+- [docs/deployment.md](docs/deployment.md) with local Docker checks and
+  safe Render switch-over steps.
+
 ### Fixed
 
 - Mobile resume uploads no longer fail with "Unable to analyze this resume

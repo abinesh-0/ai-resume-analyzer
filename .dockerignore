@@ -1,0 +1,25 @@
+# Keep local secrets and machine-specific files out of the image.
+# Render also copies secret files into the build context — do not let
+# any of them reach the image.
+.git
+.github
+.env
+.env.*
+!.env.example
+
+# Local virtual environments and caches.
+venv/
+env/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Local uploads are runtime data, not part of the image (the folder
+# itself stays so the app's startup mkdir always finds it).
+uploads/*
+!uploads/.gitkeep
+
+*.log
+.DS_Store
+Thumbs.db
