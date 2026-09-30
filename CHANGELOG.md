@@ -43,6 +43,12 @@ The format follows [Keep a Changelog][kac], and this project uses
   HTTP 500.
 - Analysis failures log the stored object, size and exception type —
   never resume contents, passwords or secrets.
+- The analyze page no longer sits forever on a disabled "Analyzing your
+  resume..." button when the POST response is slow or never arrives (Render
+  cold start, OCR of a large scan, dropped mobile connection, proxy
+  timeout): a staged watchdog shows a "still analyzing" notice after 20 s
+  and hands the button back with a retry message after 75 s, while a
+  `pageshow` reset clears the stuck state after back/forward navigation.
 
 ---
 

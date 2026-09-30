@@ -1703,6 +1703,39 @@
 
 
 /* =========================================================
+   ANALYZE STATUS NOTICE
+   ========================================================= */
+
+.analyze-notice {
+    display: block;
+
+    margin: 10px auto 0;
+
+    max-width: 460px;
+
+    padding: 8px 12px;
+
+    text-align: center;
+
+    font-size: 11.5px;
+
+    line-height: 1.5;
+
+    color: #ffe1b0;
+
+    background: rgba(255, 196, 92, .10);
+
+    border: 1px solid rgba(255, 196, 92, .28);
+
+    border-radius: 10px;
+}
+
+.analyze-notice[hidden] {
+    display: none;
+}
+
+
+/* =========================================================
    RESPONSIVE
    ========================================================= */
 
@@ -1968,6 +2001,17 @@
                 </span>
 
             </button>
+
+
+            <!-- Watchdog status: "still analyzing" / "try again" -->
+
+            <p
+                class="analyze-notice"
+                id="analyzeNotice"
+                role="status"
+                aria-live="polite"
+                hidden
+            ></p>
 
 
             <p class="privacy-note">
@@ -2252,11 +2296,110 @@ const analyzeBtn =
         "analyzeBtn"
     );
 
+const analyzeNotice =
+    document.getElementById(
+        "analyzeNotice"
+    );
+
 
 if (
     analyzeForm &&
     analyzeBtn
 ) {
+
+    // The label as shipped — restored when a pending analysis gives up.
+    const analyzeBtnIdleHtml =
+        analyzeBtn.innerHTML;
+
+
+    // Staged watchdog. Page script keeps running while the form POST is
+    // waiting for the server, so these timers fire even when the response
+    // is very slow (Render cold start, OCR of a scanned PDF), the mobile
+    // connection drops, or a proxy times out. Without them a failed
+    // navigation leaves the button on "Analyzing your resume..." forever,
+    // with no error and no way to retry. The window.* overrides exist for
+    // automated browser tests.
+    const ANALYZE_NOTICE_MS_DEFAULT =
+        20000;
+
+    const ANALYZE_RETRY_MS_DEFAULT =
+        75000;
+
+    let analyzeNoticeTimer =
+        null;
+
+    let analyzeRetryTimer =
+        null;
+
+
+    const showAnalyzeNotice =
+        function (message) {
+
+            if (!analyzeNotice) return;
+
+            analyzeNotice.textContent =
+                message;
+
+            analyzeNotice.hidden =
+                false;
+
+        };
+
+
+    const clearAnalyzeTimers =
+        function () {
+
+            if (analyzeNoticeTimer) {
+
+                clearTimeout(
+                    analyzeNoticeTimer
+                );
+
+                analyzeNoticeTimer =
+                    null;
+
+            }
+
+            if (analyzeRetryTimer) {
+
+                clearTimeout(
+                    analyzeRetryTimer
+                );
+
+                analyzeRetryTimer =
+                    null;
+
+            }
+
+        };
+
+
+    const resetAnalyzeBtn =
+        function () {
+
+            clearAnalyzeTimers();
+
+            analyzeBtn.dataset.loading =
+                "false";
+
+            analyzeBtn.disabled =
+                false;
+
+            analyzeBtn.innerHTML =
+                analyzeBtnIdleHtml;
+
+            if (analyzeNotice) {
+
+                analyzeNotice.textContent =
+                    "";
+
+                analyzeNotice.hidden =
+                    true;
+
+            }
+
+        };
+
 
     analyzeForm.addEventListener(
         "submit",
@@ -2286,6 +2429,84 @@ if (
                     Analyzing your resume...
                 </span>
             `;
+
+
+            if (analyzeNotice) {
+
+                analyzeNotice.hidden =
+                    true;
+
+                analyzeNotice.textContent =
+                    "";
+
+            }
+
+
+            const noticeMs =
+                Number(
+                    window.ANALYZE_NOTICE_MS
+                ) ||
+                ANALYZE_NOTICE_MS_DEFAULT;
+
+
+            const retryMs =
+                Number(
+                    window.ANALYZE_RETRY_MS
+                ) ||
+                ANALYZE_RETRY_MS_DEFAULT;
+
+
+            // Stage 1 — keep the user informed while the server works.
+            analyzeNoticeTimer =
+                setTimeout(
+                    function () {
+
+                        showAnalyzeNotice(
+                            "Still analyzing… large or scanned resumes can take up to a minute."
+                        );
+
+                    },
+                    noticeMs
+                );
+
+
+            // Stage 2 — the response never arrived: hand the button back so
+            // the user can retry instead of waiting forever. A late server
+            // response still renders normally if it eventually arrives.
+            analyzeRetryTimer =
+                setTimeout(
+                    function () {
+
+                        resetAnalyzeBtn();
+
+                        showAnalyzeNotice(
+                            "This is taking longer than usual. Check your connection, then try Analyze again — or keep waiting."
+                        );
+
+                    },
+                    retryMs
+                );
+
+        }
+    );
+
+
+    // Back/forward navigation (for example returning from a browser error
+    // page) can restore this document with the button still in its loading
+    // state — always come back to a clean button.
+    window.addEventListener(
+        "pageshow",
+        function () {
+
+            if (
+                analyzeBtn.dataset.loading ===
+                "true" ||
+                analyzeBtn.disabled
+            ) {
+
+                resetAnalyzeBtn();
+
+            }
 
         }
     );
