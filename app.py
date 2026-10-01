@@ -2281,14 +2281,14 @@ def ms_since(moment):
 # Scanned resumes are 1-3 pages; 8 is already generous. Overridable.
 MAX_OCR_PAGES = int_env(
     "MAX_OCR_PAGES",
-    8
+    3
 )
 
 # Stop once this much text has been recognised — a normal resume has
 # far more, so typical scans finish after the first page or two.
 OCR_TARGET_CHARS = int_env(
     "OCR_TARGET_CHARS",
-    4000
+    3000
 )
 
 # Longest rasterised page edge passed to Tesseract, in pixels. Normal
@@ -2296,7 +2296,7 @@ OCR_TARGET_CHARS = int_env(
 # scaled down instead of feeding tens of megapixels to OCR.
 OCR_MAX_PAGE_DIMENSION = int_env(
     "OCR_MAX_PAGE_DIMENSION",
-    2400
+    1600
 )
 
 # Embedded text this long marks a page as already readable: the page
@@ -2307,8 +2307,8 @@ OCR_PAGE_TEXT_MIN_CHARS = 25
 
 
 def ocr_zoom_for_page(page):
-    """Zoom for rasterising a page: at most 2x, never more than
-    OCR_MAX_PAGE_DIMENSION pixels on either edge."""
+    """Zoom for rasterising a page: keep OCR at 1x on Render, while
+    scaling unusually large pages down to OCR_MAX_PAGE_DIMENSION."""
 
     width = (
         page.rect.width
@@ -2321,7 +2321,7 @@ def ocr_zoom_for_page(page):
     )
 
     return min(
-        2.0,
+        1.0,
         OCR_MAX_PAGE_DIMENSION / width,
         OCR_MAX_PAGE_DIMENSION / height,
     )

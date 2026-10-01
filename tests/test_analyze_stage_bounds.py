@@ -247,9 +247,8 @@ class OcrBoundTests(unittest.TestCase):
 
                     resume_app.remove_uploaded_file(path)
 
-        # 1500 chars/page: the 4000-char target is reached on page 3,
-        # long before the page cap.
-        self.assertEqual(len(calls), 3)
+        # 1500 chars/page: the 3000-char target is reached on page 2.
+        self.assertEqual(len(calls), 2)
         self.assertIn(
             "target_hit=True",
             "\n".join(captured.output),
@@ -401,10 +400,10 @@ class OcrBoundTests(unittest.TestCase):
         normal_doc = pymupdf.open()
         normal = normal_doc.new_page(width=612, height=792)
 
-        # Normal letter pages keep the historical 2x zoom.
+        # Normal letter pages use the faster 1x OCR raster.
         self.assertEqual(
             resume_app.ocr_zoom_for_page(normal),
-            2.0,
+            1.0,
         )
 
         normal_doc.close()

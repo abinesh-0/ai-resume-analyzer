@@ -31,7 +31,7 @@ os.environ["SUPABASE_DB_URL"] = "postgresql://test:test@127.0.0.1:9/test"
 os.environ["SECRET_KEY"] = "test-only-secret-key"
 
 import pymupdf
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 import app as resume_app
 
@@ -80,20 +80,89 @@ def text_pdf_bytes():
 
 
 def image_pdf_bytes():
-    """A resume saved as a picture: no extractable text, OCR required."""
+    """A readable scanned resume image with no embedded PDF text."""
 
-    image = Image.new("RGB", (1240, 1754), "white")
+    image = Image.new("RGB", (1000, 1400), "white")
     draw = ImageDraw.Draw(image)
-    draw.multiline_text((60, 60), RESUME_TEXT, fill="black", spacing=8)
+
+    text = """John Doe
+Software Engineer
+
+Email: john@example.com
+Phone: 9876543210
+
+Professional Summary
+Backend developer with Python experience.
+
+Technical Skills
+Python, Flask, SQL, Git, Docker
+
+Education
+Bachelor of Engineering
+
+Work Experience
+Software Engineer
+Sample Software Pvt Ltd
+"""
+
+    # Use a real TrueType font so OCR can clearly recognize the fixture.
+    font = None
+
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+        "C:/Windows/Fonts/arial.ttf",
+        "C:/Windows/Fonts/Arial.ttf",
+    ]
+
+    for font_path in font_paths:
+        try:
+            font = ImageFont.truetype(font_path, 32)
+            break
+        except OSError:
+            continue
+
+    if font is None:
+        raise RuntimeError(
+            "No TrueType font available for OCR test fixture"
+        )
+
+    draw.multiline_text(
+        (60, 60),
+        text,
+        fill="black",
+        spacing=14,
+        font=font,
+    )
+
     buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
+
+    # JPEG keeps the test PDF comfortably below the upload limit.
+    image.save(
+        buffer,
+        format="JPEG",
+        quality=92,
+        optimize=True,
+    )
+
     image.close()
 
     document = pymupdf.open()
-    page = document.new_page(width=595, height=842)
-    page.insert_image(pymupdf.Rect(0, 0, 595, 842), stream=buffer.getvalue())
+
+    page = document.new_page(
+        width=595,
+        height=842,
+    )
+
+    page.insert_image(
+        pymupdf.Rect(0, 0, 595, 842),
+        stream=buffer.getvalue(),
+    )
+
     data = document.tobytes()
+
     document.close()
+
     return data
 
 
