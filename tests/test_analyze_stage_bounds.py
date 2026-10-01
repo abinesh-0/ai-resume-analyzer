@@ -13,7 +13,10 @@ page while Render logs a 200.
 
 These tests pin the three fixes:
 
-1. OCR is bounded (page cap, text target, rasterised-page size cap).
+1. OCR is bounded (page cap, text target, rasterised-page size cap) and
+   only runs on the pages that actually need it: pages with their own
+   text layer keep that text, uniform blank pages are skipped, and no
+   page is ever OCR'd twice.
 2. Every /analyze stage emits a redacted timing line, and failures log
    the stage plus a full traceback — never resume contents, personal
    data, or the original filename.
@@ -74,11 +77,43 @@ def text_pdf_bytes():
 
 
 def blank_pdf_bytes(pages):
-    """An image-free multi-page PDF: no extractable text, so extraction
-    falls into the OCR loop on every page."""
+    """An image-free multi-page PDF: no extractable text and perfectly
+    uniform pages, so extraction must skip them without OCR."""
     document = pymupdf.open()
     for _ in range(pages):
         document.new_page()
+    data = document.tobytes()
+    document.close()
+    return data
+
+
+def scan_pdf_bytes(page_sizes):
+    """Scan-like pages of the given sizes: a black bar instead of a text
+    layer, so each page needs OCR (and never a perfectly uniform one)."""
+    document = pymupdf.open()
+    for width, height in page_sizes:
+        page = document.new_page(width=width, height=height)
+        page.draw_rect(
+            pymupdf.Rect(40, 40, width - 40, 120),
+            color=None,
+            fill=(0, 0, 0),
+        )
+    data = document.tobytes()
+    document.close()
+    return data
+
+
+def mixed_pdf_bytes():
+    """Page 1 carries a small real text layer; page 2 is a scan."""
+    document = pymupdf.open()
+    text_page = document.new_page()
+    text_page.insert_text(
+        (40, 50), "Career Objective: backend engineer", fontsize=9
+    )
+    scan_page = document.new_page()
+    scan_page.draw_rect(
+        pymupdf.Rect(40, 40, 500, 120), color=None, fill=(0, 0, 0)
+    )
     data = document.tobytes()
     document.close()
     return data
@@ -146,8 +181,9 @@ class OcrBoundTests(unittest.TestCase):
             with self.assertLogs(resume_app.logger, level="INFO") as captured:
 
                 path = write_upload(
-                    blank_pdf_bytes(
-                        resume_app.MAX_OCR_PAGES + 5
+                    scan_pdf_bytes(
+                        [(595, 842)]
+                        * (resume_app.MAX_OCR_PAGES + 5)
                     )
                 )
 
@@ -197,7 +233,10 @@ class OcrBoundTests(unittest.TestCase):
             with self.assertLogs(resume_app.logger, level="INFO") as captured:
 
                 path = write_upload(
-                    blank_pdf_bytes(resume_app.MAX_OCR_PAGES + 5)
+                    scan_pdf_bytes(
+                        [(595, 842)]
+                        * (resume_app.MAX_OCR_PAGES + 5)
+                    )
                 )
 
                 try:
@@ -215,6 +254,129 @@ class OcrBoundTests(unittest.TestCase):
             "target_hit=True",
             "\n".join(captured.output),
         )
+
+    def test_pages_with_a_text_layer_are_not_ocrd(self):
+
+        calls = []
+
+        def fake_ocr(image, config=""):
+
+            calls.append(image.size)
+
+            return "z" * 120
+
+        with mock.patch.object(
+            resume_app.pytesseract,
+            "image_to_string",
+            side_effect=fake_ocr,
+        ):
+
+            with self.assertLogs(resume_app.logger, level="INFO") as captured:
+
+                path = write_upload(
+                    mixed_pdf_bytes()
+                )
+
+                try:
+
+                    text = resume_app.extract_resume(path)
+
+                finally:
+
+                    resume_app.remove_uploaded_file(path)
+
+        # Only the scan page reaches Tesseract. The page with its own
+        # text layer keeps that text instead of being rasterised, and
+        # the kept text still reaches the analysis.
+        self.assertEqual(len(calls), 1)
+        self.assertIn("Career Objective", text)
+        self.assertIn("z" * 120, text)
+
+        self.assertIn(
+            "text_pages=1",
+            "\n".join(captured.output),
+        )
+
+    def test_uniform_blank_pages_never_reach_tesseract(self):
+
+        calls = []
+
+        def fake_ocr(image, config=""):
+
+            calls.append(image.size)
+
+            return "y" * 100
+
+        with mock.patch.object(
+            resume_app.pytesseract,
+            "image_to_string",
+            side_effect=fake_ocr,
+        ):
+
+            with self.assertLogs(resume_app.logger, level="INFO") as captured:
+
+                path = write_upload(
+                    blank_pdf_bytes(3)
+                )
+
+                try:
+
+                    resume_app.extract_resume(path)
+
+                finally:
+
+                    resume_app.remove_uploaded_file(path)
+
+        # A perfectly uniform page cannot contain text: no OCR process
+        # is started for any of them.
+        self.assertEqual(calls, [])
+
+        summary = next(
+            line
+            for line in captured.output
+            if "OCR summary" in line
+        )
+
+        self.assertIn("pages=0", summary)
+        self.assertIn("blank_pages=3", summary)
+
+    def test_every_needing_page_is_ocrd_exactly_once(self):
+
+        sizes = [(595, 842), (500, 700), (612, 792)]
+
+        calls = []
+
+        def fake_ocr(image, config=""):
+
+            calls.append(image.size)
+
+            return "q" * 100
+
+        with mock.patch.object(
+            resume_app.pytesseract,
+            "image_to_string",
+            side_effect=fake_ocr,
+        ):
+
+            with self.assertLogs(resume_app.logger, level="INFO"):
+
+                path = write_upload(
+                    scan_pdf_bytes(sizes)
+                )
+
+                try:
+
+                    resume_app.extract_resume(path)
+
+                finally:
+
+                    resume_app.remove_uploaded_file(path)
+
+        # One OCR run per page and never a page twice: the distinct
+        # page sizes make every raster size unique, so a repeated OCR
+        # run on any page would show up as a duplicate.
+        self.assertEqual(len(calls), len(sizes))
+        self.assertEqual(len(set(calls)), len(sizes))
 
     def test_page_raster_is_bounded(self):
 

@@ -2249,7 +2249,9 @@ def open_pdf(path):
 # browser watchdog to fire, the user to retry, and the finished server
 # response to be discarded. Every OCR loop is therefore bounded by
 # page count, rasterised page size, and a text target that stops the
-# work as soon as there is enough text to analyse.
+# work as soon as there is enough text to analyse. Pages that already
+# carry an embedded text layer, and blank (uniform) pages, are never
+# handed to Tesseract at all.
 
 def int_env(name, default):
 
@@ -2297,6 +2299,12 @@ OCR_MAX_PAGE_DIMENSION = int_env(
     2400
 )
 
+# Embedded text this long marks a page as already readable: the page
+# keeps its own text layer and is never rasterised or OCR'd. Below it
+# the page is treated as a scan — a couple of characters are page
+# numbers, stamps or artefacts, not a text layer.
+OCR_PAGE_TEXT_MIN_CHARS = 25
+
 
 def ocr_zoom_for_page(page):
     """Zoom for rasterising a page: at most 2x, never more than
@@ -2321,11 +2329,42 @@ def ocr_zoom_for_page(page):
 
 def extract_pdf(path):
 
-    parts = []
+    """Extract a PDF's text with the cheapest sufficient strategy.
+
+    Embedded text first, page by page; OCR only for the pages that do
+    not already carry a usable text layer (and never for blank pages),
+    stopping as soon as enough text has been collected."""
+
+    raw_parts = []
+
+    collected_parts = []
+
+    ocr_unavailable = None
+
+    ocr_pages_done = 0
+
+    examined_pages = 0
+
+    ocr_capped = False
+
+    ocr_target_hit = False
+
+    text_pages_kept = 0
+
+    blank_pages = 0
+
+    collected_chars = 0
+
+    ocr_started = time.monotonic()
 
     with open_pdf(path) as pdf:
 
-        for page in pdf:
+        pages = []
+
+        for page_number, page in enumerate(
+            pdf,
+            start=1
+        ):
 
             txt = page.get_text(
                 "text"
@@ -2333,46 +2372,75 @@ def extract_pdf(path):
 
             if txt:
 
-                parts.append(
+                raw_parts.append(
                     txt
                 )
 
-    text = clean_text(
-        "\n".join(parts)
-    )
+            pages.append(
+                (
+                    page_number,
+                    page,
+                    txt or ""
+                )
+            )
 
-    if len(text) >= 50:
+        text = clean_text(
+            "\n".join(raw_parts)
+        )
 
-        return text
+        if len(text) >= 50:
 
-    # OCR fallback for scanned/image-only PDFs. Tesseract is a system
-    # binary, so it can be missing on a server (for example a Render
-    # deployment); that must surface as a clear message, not a crash.
-    ocr_parts = []
+            return text
 
-    ocr_unavailable = None
+        # OCR fallback for scanned/image-only PDFs. Tesseract is a
+        # system binary, so it can be missing on a server (for example
+        # a Render deployment); that must surface as a clear message,
+        # not a crash. The document stays open from the text pass, so
+        # nothing is read or parsed twice.
+        for page_number, page, embedded in pages:
 
-    ocr_pages_done = 0
+            page_text = (
+                clean_text(embedded)
+                if embedded
+                else ""
+            )
 
-    ocr_capped = False
+            # A page with its own usable text layer never needs OCR:
+            # keep the embedded text instead of rasterising the page.
+            if len(page_text) >= OCR_PAGE_TEXT_MIN_CHARS:
 
-    ocr_target_hit = False
+                collected_parts.append(
+                    page_text
+                )
 
-    ocr_started = time.monotonic()
+                collected_chars += len(
+                    page_text
+                )
 
-    with open_pdf(path) as pdf:
+                text_pages_kept += 1
 
-        for page_number, page in enumerate(
-            pdf,
-            start=1
-        ):
+                # The target check also covers embedded text, so the
+                # loop still stops as soon as there is enough.
+                if collected_chars >= OCR_TARGET_CHARS:
 
-            # Bound 1: never OCR more pages than a resume can have.
-            if page_number > MAX_OCR_PAGES:
+                    ocr_target_hit = True
+
+                    break
+
+                continue
+
+            # Bound 1: never examine (rasterise or OCR) more pages
+            # than a resume can have. Kept-text pages above do not
+            # spend this budget because no OCR work happens on them.
+            if examined_pages >= MAX_OCR_PAGES:
 
                 ocr_capped = True
 
                 break
+
+            examined_pages += 1
+
+            page_mark = time.monotonic()
 
             zoom = ocr_zoom_for_page(page)
 
@@ -2385,19 +2453,44 @@ def extract_pdf(path):
                 alpha=False
             )
 
-            image = Image.open(
-                io.BytesIO(
-                    pix.tobytes("png")
+            # A uniform page (blank sheet, divider) cannot contain
+            # text, so it is skipped without starting Tesseract.
+            if pix.is_unicolor:
+
+                blank_pages += 1
+
+                continue
+
+            if pix.n == 3:
+
+                # Raw samples straight into PIL: no PNG encode/decode
+                # round trip per page. The stride keeps padded rows
+                # byte-exact.
+                image = Image.frombytes(
+                    "RGB",
+                    (
+                        pix.width,
+                        pix.height
+                    ),
+                    pix.samples,
+                    "raw",
+                    "RGB",
+                    pix.stride
                 )
-            )
+
+            else:
+
+                image = Image.open(
+                    io.BytesIO(
+                        pix.tobytes("png")
+                    )
+                )
 
             try:
 
-                ocr_parts.append(
-                    pytesseract.image_to_string(
-                        image,
-                        config="--oem 3 --psm 6"
-                    )
+                ocr_text = pytesseract.image_to_string(
+                    image,
+                    config="--oem 3 --psm 6"
                 )
 
             except pytesseract.TesseractNotFoundError as exc:
@@ -2415,18 +2508,37 @@ def extract_pdf(path):
                     "continuing with the remaining pages."
                 )
 
+                ocr_text = ""
+
             finally:
 
                 image.close()
 
-            ocr_pages_done = page_number
+            ocr_pages_done += 1
+
+            logger.info(
+                "OCR page=%d ms=%d zoom=%.2f chars=%d",
+                page_number,
+                ms_since(page_mark),
+                zoom,
+                len(
+                    ocr_text or ""
+                ),
+            )
+
+            if ocr_text:
+
+                collected_parts.append(
+                    ocr_text
+                )
+
+                collected_chars += len(
+                    ocr_text
+                )
 
             # Bound 3: once there is enough text to analyse, stop —
             # later pages would not change the validation outcome.
-            if sum(
-                len(part)
-                for part in ocr_parts
-            ) >= OCR_TARGET_CHARS:
+            if collected_chars >= OCR_TARGET_CHARS:
 
                 ocr_target_hit = True
 
@@ -2434,18 +2546,15 @@ def extract_pdf(path):
 
     logger.info(
         "OCR summary: pages=%d max_pages=%d chars=%d ms=%d "
-        "page_cap_hit=%s target_hit=%s",
+        "page_cap_hit=%s target_hit=%s text_pages=%d blank_pages=%d",
         ocr_pages_done,
         MAX_OCR_PAGES,
-        sum(
-            len(part)
-            for part in ocr_parts
-        ),
-        int(
-            (time.monotonic() - ocr_started) * 1000
-        ),
+        collected_chars,
+        ms_since(ocr_started),
         ocr_capped,
         ocr_target_hit,
+        text_pages_kept,
+        blank_pages,
     )
 
     if ocr_unavailable is not None:
@@ -2457,7 +2566,7 @@ def extract_pdf(path):
 
     return clean_text(
         "\n".join(
-            ocr_parts
+            collected_parts
         )
     )
 

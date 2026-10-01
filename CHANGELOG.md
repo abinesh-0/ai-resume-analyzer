@@ -67,6 +67,20 @@ The format follows [Keep a Changelog][kac], and this project uses
   (logged as `POST /analyze … 200`) was discarded — the user stayed stuck
   on the Analyze page even though the analysis had succeeded. All three
   limits are environment-overridable.
+- `/analyze` no longer spends OCR time on pages that do not need it. The
+  PDF is read and parsed once per request (the embedded-text pass and the
+  OCR loop share the same open document), a page whose embedded text
+  layer is usable keeps that text and is never rasterised, and a
+  perfectly uniform (blank) page never starts Tesseract. Pages that do
+  need OCR are rasterised exactly once and handed to PIL straight from
+  the pixmap samples — the per-page PNG encode/decode round trip is
+  gone — and the loop stops immediately once `OCR_TARGET_CHARS`
+  characters (embedded plus recognised) have been collected. Each OCR'd
+  page now logs `OCR page=… ms=… zoom=… chars=…`, and the `OCR summary`
+  line reports `text_pages=` and `blank_pages=` next to the existing
+  counters. A mixed (part text, part scan) or partly blank upload
+  previously sent every page to Tesseract. Scores, career match,
+  skills, roadmap, recommendations and history behaviour are unchanged.
 - The 75 s retry notice now says a new attempt starts the analysis over,
   so users can choose to keep waiting for a response that may already be
   on its way instead of cancelling it.
