@@ -51,6 +51,6 @@ RUN python -c "import pytesseract; langs = pytesseract.get_languages(); assert '
 # PyMuPDF load per worker; raise --workers on larger instances. The
 # timeout covers OCR of large scans. `exec` hands Render's stop
 # signals straight to Gunicorn.
-EXPOSE 8080
+EXPOSE 10000
 
-CMD ["sh", "-c", "exec gunicorn app:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4 --timeout 180 --access-logfile - --error-logfile -"]
+CMD ["sh", "-c", "exec gunicorn app:app --bind 0.0.0.0:${PORT:-10000} --workers 1 --threads 4 --timeout 180 --access-logfile - --error-logfile -"]
