@@ -6666,3 +6666,7 @@ if __name__ == "__main__":
             "false"
         ).lower() == "true"
     )
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}, 200
